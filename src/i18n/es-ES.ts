@@ -18,4 +18,8 @@ export const messages = {
   'station.httpSoon': 'Esta emisora estará disponible muy pronto en DirectoRadio.',
   'station.back': '← Volver al listado',
   'notFound.title': 'No hemos encontrado esta emisora',
+  'notFound.page': 'No hemos encontrado esta página',
+  'notFound.home': 'Volver a la portada',
+  'error.title': 'Algo ha fallado',
+  'error.retry': 'Reintentar',
 } as const

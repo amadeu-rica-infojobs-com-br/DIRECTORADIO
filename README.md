@@ -1,36 +1,36 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# DirectoRadio
 
-## Getting Started
+Directorio de emisoras de radio online (Next.js 16, Tailwind 4, Drizzle + Postgres).
 
-First, run the development server:
+## Requisitos
+
+- Node 24
+- Docker
+
+## Puesta en marcha
 
 ```bash
+docker compose up -d          # Postgres (directoradio y directoradio_test)
+cp .env.example .env.local    # en PowerShell: Copy-Item .env.example .env.local
+npm install
+npm run db:migrate
+npm run job:sync              # importa el catálogo desde Radio-Browser
+npm run job:health            # comprueba los streams; es lento con el catálogo completo
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Tests
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm test                      # Vitest (requiere la base de datos de test)
+npx playwright install chromium
+npm run test:e2e              # compila, migra y levanta el servidor en el puerto 3100
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Tras un proxy corporativo con inspección TLS, instala el navegador con `NODE_OPTIONS=--use-system-ca`.
 
-## Learn More
+Los tests usan exclusivamente `DATABASE_URL_TEST` y se niegan a ejecutarse si la base de datos no es `directoradio_test`.
 
-To learn more about Next.js, take a look at the following resources:
+## Documentación
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Diseño y planes de implementación en [docs/superpowers/](docs/superpowers/).

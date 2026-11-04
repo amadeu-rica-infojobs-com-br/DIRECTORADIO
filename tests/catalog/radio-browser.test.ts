@@ -66,6 +66,37 @@ describe('fetchAllStations', () => {
     }
   })
 
+  it('passes an abort signal to every page request', async () => {
+    const fetchImpl = vi.fn(async (_url: string, _init?: RequestInit) => jsonResponse([rb()]))
+
+    await fetchAllStations({
+      baseUrl: 'https://rb.test',
+      pageSize: 2,
+      timeoutMs: 1234,
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+    })
+
+    const init = fetchImpl.mock.calls[0][1] as RequestInit
+    expect(init.signal).toBeInstanceOf(AbortSignal)
+  })
+
+  it('rejects when the request times out', async () => {
+    const fetchImpl = vi.fn(
+      (_url: string, init?: RequestInit) =>
+        new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener('abort', () => reject(init.signal?.reason))
+        }),
+    )
+
+    await expect(
+      fetchAllStations({
+        baseUrl: 'https://rb.test',
+        timeoutMs: 20,
+        fetchImpl: fetchImpl as unknown as typeof fetch,
+      }),
+    ).rejects.toMatchObject({ name: 'TimeoutError' })
+  })
+
   it('throws on non-2xx', async () => {
     const fetchImpl = vi.fn(async (_url: string, _init?: RequestInit) => jsonResponse({}, 503))
 

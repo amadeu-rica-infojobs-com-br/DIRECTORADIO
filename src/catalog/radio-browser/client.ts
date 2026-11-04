@@ -4,18 +4,28 @@ export const RADIO_BROWSER_USER_AGENT = 'DirectoRadio/0.1 (+https://directoradio
 
 const DEFAULT_BASE_URL = 'https://de1.api.radio-browser.info'
 const DEFAULT_PAGE_SIZE = 10000
+const DEFAULT_TIMEOUT_MS = 60_000
 
 export async function fetchAllStations(
-  opts: { baseUrl?: string; pageSize?: number; fetchImpl?: typeof fetch } = {},
+  opts: {
+    baseUrl?: string
+    pageSize?: number
+    timeoutMs?: number
+    fetchImpl?: typeof fetch
+  } = {},
 ): Promise<RbStation[]> {
   const baseUrl = opts.baseUrl ?? process.env.RADIO_BROWSER_BASE_URL ?? DEFAULT_BASE_URL
   const pageSize = opts.pageSize ?? DEFAULT_PAGE_SIZE
+  const timeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT_MS
   const fetchImpl = opts.fetchImpl ?? fetch
 
   const all: RbStation[] = []
   for (let offset = 0; ; offset += pageSize) {
     const url = `${baseUrl}/json/stations?hidebroken=true&order=clickcount&reverse=true&limit=${pageSize}&offset=${offset}`
-    const res = await fetchImpl(url, { headers: { 'User-Agent': RADIO_BROWSER_USER_AGENT } })
+    const res = await fetchImpl(url, {
+      headers: { 'User-Agent': RADIO_BROWSER_USER_AGENT },
+      signal: AbortSignal.timeout(timeoutMs),
+    })
     if (!res.ok) {
       throw new Error(`Radio-Browser request failed: ${res.status} ${url}`)
     }

@@ -3,6 +3,7 @@ import { drizzle } from 'drizzle-orm/postgres-js'
 import { runMigrations } from '@/db/migrate'
 import * as schema from '@/db/schema'
 import type { Db } from '@/db/client'
+import { assertTestDbUrl } from './assert-test-db'
 
 const migrated = new Set<string>()
 
@@ -11,8 +12,7 @@ export async function createTestDb(): Promise<{
   reset(): Promise<void>
   close(): Promise<void>
 }> {
-  const url = process.env.DATABASE_URL_TEST
-  if (!url) throw new Error('DATABASE_URL_TEST is not set')
+  const url = assertTestDbUrl(process.env.DATABASE_URL_TEST)
 
   if (!migrated.has(url)) {
     await runMigrations(url)

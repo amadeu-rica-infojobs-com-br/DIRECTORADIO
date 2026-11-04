@@ -120,6 +120,26 @@ describe('syncCatalog', () => {
     expect(rows.filter((r) => r.status === 'activa')).toHaveLength(3)
   })
 
+  it('does not touch eliminada stations when missing from the batch', async () => {
+    const batch = [rb(), rb(), rb(), rb()]
+    await syncCatalog(ctx.db, batch)
+    await ctx.db.insert(stations).values({
+      slug: 'gone',
+      name: 'Gone',
+      streamUrl: 'https://x/gone',
+      source: 'radio-browser',
+      externalId: 'gone',
+      status: 'eliminada',
+      deactivatedBySync: false,
+    })
+    const report = await syncCatalog(ctx.db, batch)
+    expect(report.deactivationSkipped).toBe(false)
+    expect(report.deactivated).toBe(0)
+    const [row] = await ctx.db.select().from(stations).where(eq(stations.externalId, 'gone'))
+    expect(row.status).toBe('eliminada')
+    expect(row.deactivatedBySync).toBe(false)
+  })
+
   it('skips deactivation when batch is suspiciously small', async () => {
     const batch = Array.from({ length: 10 }, () => rb())
     await syncCatalog(ctx.db, batch)
