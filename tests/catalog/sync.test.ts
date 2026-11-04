@@ -156,8 +156,12 @@ describe('syncCatalog', () => {
       rb({ stationuuid: 'b', name: 'B', url_resolved: 'https://dup.example/live', clickcount: 50 }),
     ])
     expect(report.deactivated).toBe(0)
-    const [a] = await ctx.db.select().from(stations).where(eq(stations.externalId, 'a'))
-    expect(a.status).toBe('activa')
+    const rows = await ctx.db.select().from(stations)
+    expect(rows).toHaveLength(1)
+    expect(rows[0].externalId).toBe('a')
+    expect(rows[0].status).toBe('activa')
+    expect(report.inserted).toBe(0)
+    expect(report.skippedDuplicates).toBe(1)
   })
 
   it('reactivates stations deactivated by sync when they reappear', async () => {

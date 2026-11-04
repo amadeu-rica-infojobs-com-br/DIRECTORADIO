@@ -46,6 +46,19 @@ export async function syncCatalog(db: Db, rbStations: RbStation[]): Promise<Sync
     else report.skippedInvalid++
   }
 
+  const knownIds = new Set(
+    (await db.select({ externalId: stations.externalId }).from(stations).where(eq(stations.source, SOURCE))).map(
+      (r) => r.externalId as string,
+    ),
+  )
+  // Existing stations win a stream URL over new ones; ties go to the most clicked.
+  const beats = (m: MappedStation, prev: MappedStation) => {
+    const mKnown = knownIds.has(m.externalId)
+    const prevKnown = knownIds.has(prev.externalId)
+    if (mKnown !== prevKnown) return mKnown
+    return m.rbClickCount > prev.rbClickCount
+  }
+
   const byStream = new Map<string, MappedStation>()
   const byExternalId = new Set<string>()
   for (const m of mapped) {
@@ -60,7 +73,7 @@ export async function syncCatalog(db: Db, rbStations: RbStation[]): Promise<Sync
       byStream.set(key, m)
     } else {
       report.skippedDuplicates++
-      if (m.rbClickCount > prev.rbClickCount) byStream.set(key, m)
+      if (beats(m, prev)) byStream.set(key, m)
     }
   }
   const valid = [...byStream.values()]
