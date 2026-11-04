@@ -13,6 +13,17 @@ function isHttps(url: string): boolean {
   }
 }
 
+// Removing src alone keeps the live connection open; load() aborts it.
+function releaseStream(audio: HTMLAudioElement) {
+  audio.pause()
+  audio.removeAttribute('src')
+  try {
+    audio.load()
+  } catch {
+    // No media loader (e.g. jsdom): nothing to abort.
+  }
+}
+
 export function AudioPlayer({ streamUrl, stationName }: { streamUrl: string; stationName: string }) {
   const [status, setStatus] = useState<Status>('idle')
   const audioRef = useRef<HTMLAudioElement | null>(null)
@@ -22,16 +33,14 @@ export function AudioPlayer({ streamUrl, stationName }: { streamUrl: string; sta
     const audio = audioRef.current
     if (!audio) return
     audioRef.current = null
-    audio.pause()
-    audio.removeAttribute('src')
+    releaseStream(audio)
   }
 
   useEffect(() => {
     return () => {
       const audio = audioRef.current
       audioRef.current = null
-      audio?.pause()
-      audio?.removeAttribute('src')
+      if (audio) releaseStream(audio)
     }
   }, [])
 

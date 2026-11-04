@@ -1,9 +1,21 @@
-import { fireEvent, render, screen } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AudioPlayer } from '@/components/AudioPlayer'
 import { t } from '@/i18n'
 
-afterEach(() => vi.restoreAllMocks())
+let srcAtLoad: (string | null)[] = []
+
+beforeEach(() => {
+  srcAtLoad = []
+  vi.spyOn(HTMLMediaElement.prototype, 'load').mockImplementation(function (this: HTMLMediaElement) {
+    srcAtLoad.push(this.getAttribute('src'))
+  })
+})
+
+afterEach(() => {
+  cleanup()
+  vi.restoreAllMocks()
+})
 
 describe('AudioPlayer', () => {
   it('shows notice for http streams', () => {
@@ -33,7 +45,19 @@ describe('AudioPlayer', () => {
 
     fireEvent.click(screen.getByRole('button', { name: t('station.pause') }))
     expect(pause).toHaveBeenCalled()
+    expect(srcAtLoad).toEqual([null])
     expect(screen.getByText('▶')).toBeInTheDocument()
+  })
+
+  it('plays again after pause', () => {
+    const play = vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined)
+    vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {})
+    render(<AudioPlayer streamUrl="https://x/s" stationName="Radio" />)
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(t('station.listen')) }))
+    fireEvent.click(screen.getByRole('button', { name: t('station.pause') }))
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(t('station.listen')) }))
+    expect(play).toHaveBeenCalledTimes(2)
+    expect(srcAtLoad).toEqual([null])
   })
 
   it('pauses audio on unmount', async () => {
@@ -43,6 +67,7 @@ describe('AudioPlayer', () => {
     fireEvent.click(screen.getByRole('button'))
     unmount()
     expect(pause).toHaveBeenCalledTimes(1)
+    expect(srcAtLoad).toEqual([null])
   })
 
   it('shows unhealthy notice when audio errors', async () => {
