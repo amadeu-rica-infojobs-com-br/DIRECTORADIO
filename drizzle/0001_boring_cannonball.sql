@@ -1,0 +1,1 @@
+ALTER TABLE "stations" ADD COLUMN "deactivated_by_sync" boolean DEFAULT false NOT NULL;
