@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { StationCard } from '@/components/StationCard'
 import { Pagination } from '@/components/Pagination'
 import { t } from '@/i18n'
@@ -38,8 +38,49 @@ describe('StationCard', () => {
     expect(screen.getByText('C')).toBeInTheDocument()
   })
 
+  it('renders http logos over https', () => {
+    const { container } = render(
+      <StationCard station={{ ...station, logoUrl: 'http://example.com/ser.png' }} />,
+    )
+    expect(container.querySelector('img')).toHaveAttribute('src', 'https://example.com/ser.png')
+  })
+
+  it('shows initial without img for non-http(s) logo urls', () => {
+    const { container } = render(
+      <StationCard station={{ ...station, logoUrl: 'javascript:alert(1)' }} />,
+    )
+    expect(container.querySelector('img')).toBeNull()
+    expect(screen.getByText('C')).toBeInTheDocument()
+  })
+
+  it('shows initial when the image already failed before mount', () => {
+    const complete = vi.spyOn(HTMLImageElement.prototype, 'complete', 'get').mockReturnValue(true)
+    const width = vi.spyOn(HTMLImageElement.prototype, 'naturalWidth', 'get').mockReturnValue(0)
+    try {
+      const { container } = render(<StationCard station={station} />)
+      expect(container.querySelector('img')).toBeNull()
+      expect(screen.getByText('C')).toBeInTheDocument()
+    } finally {
+      complete.mockRestore()
+      width.mockRestore()
+    }
+  })
+
+  it('keeps a loaded image', () => {
+    const complete = vi.spyOn(HTMLImageElement.prototype, 'complete', 'get').mockReturnValue(true)
+    const width = vi.spyOn(HTMLImageElement.prototype, 'naturalWidth', 'get').mockReturnValue(64)
+    try {
+      const { container } = render(<StationCard station={station} />)
+      expect(container.querySelector('img')).not.toBeNull()
+    } finally {
+      complete.mockRestore()
+      width.mockRestore()
+    }
+  })
+
   it('rounds rating to half stars with accessible label', () => {
     render(<StationCard station={station} />)
+    expect(screen.getByLabelText(t('station.ratingLabel', { avg: '4,5' }))).toBeInTheDocument()
     expect(screen.getByLabelText('Valoración 4,5 de 5')).toBeInTheDocument()
   })
 
@@ -57,6 +98,12 @@ describe('Pagination', () => {
     rerender(<Pagination page={3} pageCount={3} />)
     expect(screen.queryByText(t('pagination.next'))).toBeNull()
     expect(screen.getByText(t('pagination.prev'))).toHaveAttribute('href', '/?pagina=2')
+  })
+
+  it('labels the nav from i18n', () => {
+    render(<Pagination page={1} pageCount={3} />)
+    expect(screen.getByRole('navigation')).toHaveAttribute('aria-label', 'Paginación')
+    expect(t('pagination.label')).toBe('Paginación')
   })
 })
 

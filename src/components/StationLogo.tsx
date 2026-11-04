@@ -1,14 +1,23 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { toSafeLogoUrl } from '@/lib/logo'
 
 type Props = { name: string; logoUrl: string | null; size?: number }
 
 export function StationLogo({ name, logoUrl, size = 48 }: Props) {
   const [failedUrl, setFailedUrl] = useState<string | null>(null)
+  const imgRef = useRef<HTMLImageElement>(null)
+  const safeUrl = toSafeLogoUrl(logoUrl)
   const style = { width: size, height: size }
 
-  if (!logoUrl || failedUrl === logoUrl) {
+  // El error pudo dispararse en el HTML del servidor antes de que React enganchara onError.
+  useEffect(() => {
+    const img = imgRef.current
+    if (safeUrl && img && img.complete && img.naturalWidth === 0) setFailedUrl(safeUrl)
+  }, [safeUrl])
+
+  if (!safeUrl || failedUrl === safeUrl) {
     const initial = [...name.trim()][0]?.toUpperCase() ?? '?'
     return (
       <span
@@ -24,13 +33,14 @@ export function StationLogo({ name, logoUrl, size = 48 }: Props) {
   return (
     // eslint-disable-next-line @next/next/no-img-element -- logos de dominios externos arbitrarios
     <img
-      src={logoUrl}
+      ref={imgRef}
+      src={safeUrl}
       alt=""
       width={size}
       height={size}
       loading="lazy"
       referrerPolicy="no-referrer"
-      onError={() => setFailedUrl(logoUrl)}
+      onError={() => setFailedUrl(safeUrl)}
       style={style}
       className="shrink-0 rounded-md object-contain"
     />

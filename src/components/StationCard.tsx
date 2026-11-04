@@ -1,12 +1,13 @@
 import Link from 'next/link'
 import type { StationCardData } from '@/catalog/queries'
 import { StationLogo } from '@/components/StationLogo'
+import { t } from '@/i18n'
 import { countryName, flagEmoji } from '@/lib/country'
 import { GENRE_LABELS } from '@/lib/genres'
 
 function Stars({ avg }: { avg: number }) {
   const rounded = Math.min(5, Math.max(0, Math.round(avg * 2) / 2))
-  const label = `Valoración ${String(rounded).replace('.', ',')} de 5`
+  const label = t('station.ratingLabel', { avg: String(rounded).replace('.', ',') })
   return (
     <span role="img" aria-label={label} className="flex">
       {[1, 2, 3, 4, 5].map((i) => (

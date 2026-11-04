@@ -6,7 +6,7 @@ const linkClass =
 
 export function Pagination({ page, pageCount }: { page: number; pageCount: number }) {
   return (
-    <nav className="mt-8 flex items-center justify-center gap-4" aria-label="Paginación">
+    <nav className="mt-8 flex items-center justify-center gap-4" aria-label={t('pagination.label')}>
       {page > 1 && (
         <Link href={`/?pagina=${page - 1}`} className={linkClass}>
           {t('pagination.prev')}
