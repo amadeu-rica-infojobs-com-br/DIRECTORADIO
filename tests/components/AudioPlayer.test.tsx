@@ -1,0 +1,58 @@
+import { fireEvent, render, screen } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { AudioPlayer } from '@/components/AudioPlayer'
+import { t } from '@/i18n'
+
+afterEach(() => vi.restoreAllMocks())
+
+describe('AudioPlayer', () => {
+  it('shows notice for http streams', () => {
+    const { container } = render(<AudioPlayer streamUrl="http://x/s" stationName="Radio HTTP" />)
+    expect(screen.getByText(t('station.httpSoon'))).toBeInTheDocument()
+    expect(container.querySelector('audio')).toBeNull()
+    expect(screen.queryByRole('button')).toBeNull()
+  })
+
+  it('treats invalid URLs as not playable', () => {
+    render(<AudioPlayer streamUrl="not a url" stationName="X" />)
+    expect(screen.getByText(t('station.httpSoon'))).toBeInTheDocument()
+    expect(screen.queryByRole('button')).toBeNull()
+  })
+
+  it('toggles play/pause for https', async () => {
+    const play = vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined)
+    const pause = vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {})
+    const { container } = render(<AudioPlayer streamUrl="https://x/s" stationName="Radio" />)
+
+    expect(container.querySelector('audio')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(t('station.listen')) }))
+
+    expect(play).toHaveBeenCalledTimes(1)
+    expect(container.querySelector('audio')).toBeNull()
+    expect(await screen.findByText('⏸')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: t('station.pause') }))
+    expect(pause).toHaveBeenCalled()
+    expect(screen.getByText('▶')).toBeInTheDocument()
+  })
+
+  it('pauses audio on unmount', async () => {
+    vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined)
+    const pause = vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {})
+    const { unmount } = render(<AudioPlayer streamUrl="https://x/s" stationName="Radio" />)
+    fireEvent.click(screen.getByRole('button'))
+    unmount()
+    expect(pause).toHaveBeenCalledTimes(1)
+  })
+
+  it('shows unhealthy notice when audio errors', async () => {
+    vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {})
+    vi.spyOn(HTMLMediaElement.prototype, 'play').mockImplementation(function (this: HTMLMediaElement) {
+      this.dispatchEvent(new Event('error'))
+      return Promise.resolve()
+    })
+    render(<AudioPlayer streamUrl="https://x/s" stationName="Radio" />)
+    fireEvent.click(screen.getByRole('button'))
+    expect(await screen.findByText(t('station.unhealthy'))).toBeInTheDocument()
+  })
+})
