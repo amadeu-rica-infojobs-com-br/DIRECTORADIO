@@ -10,6 +10,7 @@ export type SyncReport = {
   inserted: number
   updated: number
   deactivated: number
+  reactivated: number
   skippedDuplicates: number
   skippedInvalid: number
   deactivationSkipped: boolean
@@ -32,6 +33,7 @@ export async function syncCatalog(db: Db, rbStations: RbStation[]): Promise<Sync
     inserted: 0,
     updated: 0,
     deactivated: 0,
+    reactivated: 0,
     skippedDuplicates: 0,
     skippedInvalid: 0,
     deactivationSkipped: false,
@@ -62,7 +64,6 @@ export async function syncCatalog(db: Db, rbStations: RbStation[]): Promise<Sync
     }
   }
   const valid = [...byStream.values()]
-  const batchIds = new Set(valid.map((m) => m.externalId))
 
   const genreMap = new Map<string, Genre>(
     (await db.select().from(tagGenres)).map((r) => [r.tag, r.genre]),
@@ -102,6 +103,7 @@ export async function syncCatalog(db: Db, rbStations: RbStation[]): Promise<Sync
         const row = existing.get(m.externalId)
         if (row) {
           const manual = row.manualFields ?? []
+          const reactivate = row.status === 'desactivada' && row.deactivatedBySync
           await tx
             .update(stations)
             .set({
@@ -112,12 +114,14 @@ export async function syncCatalog(db: Db, rbStations: RbStation[]): Promise<Sync
               languages: m.languages,
               rbClickCount: m.rbClickCount,
               updatedAt: new Date(),
+              ...(reactivate ? { status: 'activa' as const, deactivatedBySync: false } : {}),
               ...(manual.includes('logoUrl') ? {} : { logoUrl: m.logoUrl }),
               ...(manual.includes('genre') ? {} : { genre }),
             })
             .where(eq(stations.id, row.id))
           stationIdByExternal.set(m.externalId, row.id)
           report.updated++
+          if (reactivate) report.reactivated++
         } else {
           const slug = await uniqueSlug(
             slugify(m.name),
@@ -177,12 +181,18 @@ export async function syncCatalog(db: Db, rbStations: RbStation[]): Promise<Sync
   if (activeBefore.length > 0 && valid.length < activeBefore.length * MIN_BATCH_RATIO) {
     report.deactivationSkipped = true
   } else {
-    const missing = activeBefore.filter((id) => !batchIds.has(id))
+    const missing = activeBefore.filter((id) => !byExternalId.has(id))
     for (const ids of chunk(missing, BATCH_SIZE)) {
       await db
         .update(stations)
-        .set({ status: 'desactivada', updatedAt: new Date() })
-        .where(and(eq(stations.source, SOURCE), inArray(stations.externalId, ids)))
+        .set({ status: 'desactivada', deactivatedBySync: true, updatedAt: new Date() })
+        .where(
+          and(
+            eq(stations.source, SOURCE),
+            eq(stations.status, 'activa'),
+            inArray(stations.externalId, ids),
+          ),
+        )
     }
     report.deactivated = missing.length
   }

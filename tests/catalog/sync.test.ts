@@ -141,4 +141,54 @@ describe('syncCatalog', () => {
     expect(rows).toHaveLength(1)
     expect(rows[0].externalId).toBe('high')
   })
+
+  it('does not deactivate duplicate losers', async () => {
+    await ctx.db.insert(stations).values({
+      slug: 'a',
+      name: 'A',
+      streamUrl: 'https://dup.example/live',
+      source: 'radio-browser',
+      externalId: 'a',
+      rbClickCount: 5,
+    })
+    const report = await syncCatalog(ctx.db, [
+      rb({ stationuuid: 'a', name: 'A', url_resolved: 'https://dup.example/live', clickcount: 5 }),
+      rb({ stationuuid: 'b', name: 'B', url_resolved: 'https://dup.example/live', clickcount: 50 }),
+    ])
+    expect(report.deactivated).toBe(0)
+    const [a] = await ctx.db.select().from(stations).where(eq(stations.externalId, 'a'))
+    expect(a.status).toBe('activa')
+  })
+
+  it('reactivates stations deactivated by sync when they reappear', async () => {
+    const batch = [rb(), rb(), rb(), rb()]
+    await syncCatalog(ctx.db, batch)
+    await syncCatalog(ctx.db, batch.slice(0, 3))
+    const x = batch[3].stationuuid
+    const [off] = await ctx.db.select().from(stations).where(eq(stations.externalId, x))
+    expect(off.status).toBe('desactivada')
+    expect(off.deactivatedBySync).toBe(true)
+
+    const report = await syncCatalog(ctx.db, batch)
+    expect(report.reactivated).toBe(1)
+    const [on] = await ctx.db.select().from(stations).where(eq(stations.externalId, x))
+    expect(on.status).toBe('activa')
+    expect(on.deactivatedBySync).toBe(false)
+  })
+
+  it('never reactivates editorial deactivations', async () => {
+    await ctx.db.insert(stations).values({
+      slug: 'x',
+      name: 'X',
+      streamUrl: 'https://x/x',
+      source: 'radio-browser',
+      externalId: 'x',
+      status: 'desactivada',
+      deactivatedBySync: false,
+    })
+    const report = await syncCatalog(ctx.db, [rb({ stationuuid: 'x', name: 'X', url_resolved: 'https://x/x' })])
+    expect(report.reactivated).toBe(0)
+    const [row] = await ctx.db.select().from(stations).where(eq(stations.externalId, 'x'))
+    expect(row.status).toBe('desactivada')
+  })
 })

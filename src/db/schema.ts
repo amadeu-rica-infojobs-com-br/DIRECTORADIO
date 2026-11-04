@@ -43,6 +43,7 @@ export const stations = pgTable(
     languages: text('languages').array().default(sql`'{}'::text[]`),
     genre: genreEnum('genre').notNull().default('variada'),
     status: statusEnum('status').notNull().default('activa'),
+    deactivatedBySync: boolean('deactivated_by_sync').notNull().default(false),
     source: text('source').notNull(),
     externalId: text('external_id'),
     rbClickCount: integer('rb_click_count').default(0),
