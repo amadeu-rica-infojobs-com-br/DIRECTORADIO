@@ -1,0 +1,16 @@
+export const messages = {
+  'site.name': 'DirectoRadio',
+  'site.title': 'DirectoRadio · Radio online en directo',
+  'site.description': 'Escucha emisoras de radio online en directo, gratis y sin descargas.',
+  'home.title': 'Las más escuchadas',
+  'pagination.prev': 'Anterior',
+  'pagination.next': 'Siguiente',
+  'station.listen': 'Escuchar en directo',
+  'station.website': 'Web oficial',
+  'station.ratings': '{avg} ({count} valoraciones)',
+  'station.plays': '{count} reproducciones',
+  'station.unhealthy': 'Es posible que esta emisora no esté emitiendo ahora mismo.',
+  'station.httpSoon': 'Esta emisora estará disponible muy pronto en DirectoRadio.',
+  'station.back': '← Volver al listado',
+  'notFound.title': 'No hemos encontrado esta emisora',
+} as const
