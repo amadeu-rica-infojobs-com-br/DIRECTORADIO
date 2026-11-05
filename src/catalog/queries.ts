@@ -71,18 +71,21 @@ export async function getHomeStations(
     maxes AS (
       SELECT coalesce(max(plays30d), 0)::float8 AS max_plays, coalesce(max(clicks), 0)::float8 AS max_clicks
       FROM visible
-    )
-    SELECT v.slug, v.name, v.logo_url AS "logoUrl", v.country_code AS "countryCode", v.genre,
-           v.rating_avg AS "ratingAvg", v.rating_count AS "ratingCount"
-    FROM visible v, total, maxes
-    ORDER BY (
-      least(1, total.p / ${OWN_RANKING_FULL_AT}::float8)
-        * CASE WHEN maxes.max_plays > 0 THEN v.plays30d / maxes.max_plays ELSE 0 END
-      + (1 - least(1, total.p / ${OWN_RANKING_FULL_AT}::float8))
-        * (CASE WHEN coalesce(v.country_code = 'ES', false) THEN 0.5 ELSE 0 END
+    ),
+    ranked AS (
+      SELECT v.*,
+        (CASE WHEN coalesce(v.country_code = 'ES', false) THEN 0.5 ELSE 0 END
            + CASE WHEN maxes.max_clicks > 0
-                  THEN 0.49 * ln(1 + v.clicks::float8) / ln(1 + maxes.max_clicks) ELSE 0 END)
-    ) DESC, v.name ASC, v.slug ASC
+                  THEN 0.49 * ln(1 + v.clicks::float8) / ln(1 + maxes.max_clicks) ELSE 0 END) AS legacy,
+        (least(1, total.p / ${OWN_RANKING_FULL_AT}::float8)
+          * CASE WHEN maxes.max_plays > 0 THEN v.plays30d / maxes.max_plays ELSE 0 END) AS own_part,
+        least(1, total.p / ${OWN_RANKING_FULL_AT}::float8) AS w
+      FROM visible v, total, maxes
+    )
+    SELECT r.slug, r.name, r.logo_url AS "logoUrl", r.country_code AS "countryCode", r.genre,
+           r.rating_avg AS "ratingAvg", r.rating_count AS "ratingCount"
+    FROM ranked r
+    ORDER BY (r.own_part + (1 - r.w) * r.legacy) DESC, r.legacy DESC, r.name ASC, r.slug ASC
     LIMIT ${HOME_PAGE_SIZE} OFFSET ${(currentPage - 1) * HOME_PAGE_SIZE}
   `)
 

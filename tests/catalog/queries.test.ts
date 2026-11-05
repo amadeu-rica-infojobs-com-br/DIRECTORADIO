@@ -63,8 +63,7 @@ describe('catalog queries', () => {
     await insertPlays('fr-1000', 600)
     await insertPlays('pt-50', 400)
     const { items } = await getHomeStations(ctx.db, 1)
-    // w = 1: the legacy score is ignored, so zero-play ties fall back to name ASC.
-    expect(items.map((s) => s.slug)).toEqual(['fr-1000', 'pt-50', 'es-10', 'es-500'])
+    expect(items.map((s) => s.slug)).toEqual(['fr-1000', 'pt-50', 'es-500', 'es-10'])
   })
 
   it('ignores plays older than 30 days', async () => {
