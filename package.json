@@ -12,7 +12,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx src/db/migrate.ts",
     "job:sync": "tsx src/jobs/sync.ts",
-    "job:health": "tsx src/jobs/health.ts"
+    "job:health": "tsx src/jobs/health.ts",
+    "proxy": "tsx src/proxy/server.ts"
   },
   "dependencies": {
     "dotenv": "^18.0.9",
