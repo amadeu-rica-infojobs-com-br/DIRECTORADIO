@@ -1,4 +1,4 @@
-import { and, eq, inArray } from 'drizzle-orm'
+import { and, eq, inArray, sql } from 'drizzle-orm'
 import type { Db } from '@/db/client'
 import { stations, stationTags, tagGenres, tags } from '@/db/schema'
 import { resolveGenre, type Genre } from '@/lib/genres'
@@ -27,6 +27,12 @@ const chunk = <T>(items: T[], size: number): T[][] => {
 }
 
 const streamKey = (url: string) => url.replace(/\/+$/, '').toLowerCase()
+
+const sameSet = (a: readonly string[] | null | undefined, b: readonly string[]) => {
+  const x = [...(a ?? [])].sort()
+  const y = [...b].sort()
+  return x.length === y.length && x.every((v, i) => v === y[i])
+}
 
 export async function syncCatalog(db: Db, rbStations: RbStation[]): Promise<SyncReport> {
   const report: SyncReport = {
@@ -107,8 +113,29 @@ export async function syncCatalog(db: Db, rbStations: RbStation[]): Promise<Sync
           ),
         )
       const existing = new Map(existingRows.map((r) => [r.externalId as string, r]))
+      const existingIds = new Set(existingRows.map((r) => r.id))
+
+      const currentTags = new Map<string, string[]>()
+      if (existingRows.length > 0) {
+        const tagRows = await tx
+          .select({ stationId: stationTags.stationId, name: tags.name })
+          .from(stationTags)
+          .innerJoin(tags, eq(tags.id, stationTags.tagId))
+          .where(
+            inArray(
+              stationTags.stationId,
+              existingRows.map((r) => r.id),
+            ),
+          )
+        for (const r of tagRows) {
+          const list = currentTags.get(r.stationId)
+          if (list) list.push(r.name)
+          else currentTags.set(r.stationId, [r.name])
+        }
+      }
 
       const stationIdByExternal = new Map<string, string>()
+      const tagsChanged = new Set<string>()
       const toInsert: (typeof stations.$inferInsert)[] = []
 
       for (const m of batch) {
@@ -117,6 +144,19 @@ export async function syncCatalog(db: Db, rbStations: RbStation[]): Promise<Sync
         if (row) {
           const manual = row.manualFields ?? []
           const reactivate = row.status === 'desactivada' && row.deactivatedBySync
+          const tagsDiffer = !sameSet(currentTags.get(row.id), m.tags)
+          const changed =
+            reactivate ||
+            tagsDiffer ||
+            row.name !== m.name ||
+            row.streamUrl !== m.streamUrl ||
+            row.homepageUrl !== m.homepageUrl ||
+            row.countryCode !== m.countryCode ||
+            !sameSet(row.languages, m.languages) ||
+            (row.rbClickCount ?? 0) !== m.rbClickCount ||
+            (!manual.includes('logoUrl') && row.logoUrl !== m.logoUrl) ||
+            (!manual.includes('genre') && row.genre !== genre)
+          if (!changed) continue
           await tx
             .update(stations)
             .set({
@@ -126,13 +166,14 @@ export async function syncCatalog(db: Db, rbStations: RbStation[]): Promise<Sync
               countryCode: m.countryCode,
               languages: m.languages,
               rbClickCount: m.rbClickCount,
-              updatedAt: new Date(),
+              updatedAt: sql`now()`,
               ...(reactivate ? { status: 'activa' as const, deactivatedBySync: false } : {}),
               ...(manual.includes('logoUrl') ? {} : { logoUrl: m.logoUrl }),
               ...(manual.includes('genre') ? {} : { genre }),
             })
             .where(eq(stations.id, row.id))
           stationIdByExternal.set(m.externalId, row.id)
+          if (tagsDiffer) tagsChanged.add(row.id)
           report.updated++
           if (reactivate) report.reactivated++
         } else {
@@ -179,10 +220,16 @@ export async function syncCatalog(db: Db, rbStations: RbStation[]): Promise<Sync
         for (const r of rows) tagIds.set(r.name, r.id)
       }
 
-      await tx.delete(stationTags).where(inArray(stationTags.stationId, [...stationIdByExternal.values()]))
+      const toRelink = [...stationIdByExternal.values()].filter(
+        (id) => tagsChanged.has(id) || !existingIds.has(id),
+      )
+      if (toRelink.length > 0) {
+        await tx.delete(stationTags).where(inArray(stationTags.stationId, toRelink))
+      }
+      const relink = new Set(toRelink)
       const links = batch.flatMap((m) => {
         const stationId = stationIdByExternal.get(m.externalId)
-        if (!stationId) return []
+        if (!stationId || !relink.has(stationId)) return []
         return m.tags.map((t) => ({ stationId, tagId: tagIds.get(t) as number }))
       })
       for (const part of chunk(links, 10000)) {
@@ -198,7 +245,7 @@ export async function syncCatalog(db: Db, rbStations: RbStation[]): Promise<Sync
     for (const ids of chunk(missing, BATCH_SIZE)) {
       await db
         .update(stations)
-        .set({ status: 'desactivada', deactivatedBySync: true, updatedAt: new Date() })
+        .set({ status: 'desactivada', deactivatedBySync: true, updatedAt: sql`now()` })
         .where(
           and(
             eq(stations.source, SOURCE),
