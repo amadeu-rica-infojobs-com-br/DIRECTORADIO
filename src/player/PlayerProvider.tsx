@@ -115,16 +115,29 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }
 
   async function startHls(audio: HTMLAudioElement, src: string, token: number) {
-    const { default: Hls } = await import('hls.js')
-    if (tokenRef.current !== token) return
-    if (!Hls.isSupported()) {
+    try {
+      const { default: Hls } = await import('hls.js')
+      if (tokenRef.current !== token) return
+      if (!Hls.isSupported()) {
+        setStatus('error')
+        return
+      }
+      const hls = new Hls()
+      hlsRef.current = hls
+      // hls.js gestiona la red: sin este listener un 404/CORS deja el estado en «connecting» para siempre.
+      hls.on(Hls.Events.ERROR, (_event, data) => {
+        if (!data.fatal || tokenRef.current !== token) return
+        detach()
+        setStatus('error')
+      })
+      hls.loadSource(src)
+      hls.attachMedia(audio)
+    } catch {
+      if (tokenRef.current !== token) return
+      detach()
       setStatus('error')
       return
     }
-    const hls = new Hls()
-    hlsRef.current = hls
-    hls.loadSource(src)
-    hls.attachMedia(audio)
     await startPlayback(audio, token)
   }
 

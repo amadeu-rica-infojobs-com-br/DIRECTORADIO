@@ -1,17 +1,30 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { PlayerProvider, usePlayer } from '@/player/PlayerProvider'
 import type { PlayableStation } from '@/player/source'
 
-const hls = vi.hoisted(() => ({ created: 0, sources: [] as string[], attached: 0, destroyed: 0 }))
+type HlsHandler = (event: string, data: unknown) => void
+
+const hls = vi.hoisted(() => ({
+  created: 0,
+  sources: [] as string[],
+  attached: 0,
+  destroyed: 0,
+  handlers: {} as Record<string, HlsHandler>,
+  failImport: false,
+}))
 
 vi.mock('hls.js', () => {
   class FakeHls {
+    static Events = { ERROR: 'hlsError' }
     static isSupported(): boolean {
       return true
     }
     constructor() {
       hls.created += 1
+    }
+    on(event: string, handler: HlsHandler): void {
+      hls.handlers[event] = handler
     }
     loadSource(src: string): void {
       hls.sources.push(src)
@@ -23,7 +36,12 @@ vi.mock('hls.js', () => {
       hls.destroyed += 1
     }
   }
-  return { default: FakeHls }
+  return {
+    get default() {
+      if (hls.failImport) throw new Error('chunk load failed')
+      return FakeHls
+    },
+  }
 })
 
 const A: PlayableStation = {
@@ -94,6 +112,8 @@ beforeEach(() => {
   hls.sources = []
   hls.attached = 0
   hls.destroyed = 0
+  hls.handlers = {}
+  hls.failImport = false
   sessionStorage.clear()
   vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined)
   vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {})
@@ -228,5 +248,50 @@ describe('PlayerProvider', () => {
 
     click('play B')
     expect(hls.destroyed).toBe(1)
+  })
+
+  it('hls fatal error sets error status', async () => {
+    render(
+      <PlayerProvider>
+        <Harness />
+      </PlayerProvider>,
+    )
+
+    click('play HLS')
+    await waitFor(() => expect(hls.handlers.hlsError).toBeDefined())
+    act(() => hls.handlers.hlsError('hlsError', { fatal: true }))
+
+    expect(status()).toBe('error')
+    expect(hls.destroyed).toBe(1)
+    expect(getAudio().getAttribute('src')).toBeNull()
+    expect(srcAtLoad).toEqual([null])
+  })
+
+  it('hls non-fatal error is ignored', async () => {
+    render(
+      <PlayerProvider>
+        <Harness />
+      </PlayerProvider>,
+    )
+
+    click('play HLS')
+    await waitFor(() => expect(hls.handlers.hlsError).toBeDefined())
+    act(() => hls.handlers.hlsError('hlsError', { fatal: false }))
+
+    expect(status()).toBe('connecting')
+    expect(hls.destroyed).toBe(0)
+  })
+
+  it('hls import failure sets error status', async () => {
+    hls.failImport = true
+    render(
+      <PlayerProvider>
+        <Harness />
+      </PlayerProvider>,
+    )
+
+    click('play HLS')
+    await waitFor(() => expect(status()).toBe('error'))
+    expect(hls.created).toBe(0)
   })
 })
