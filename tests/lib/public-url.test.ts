@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it, vi } from 'vitest'
-import { isPublicHttpUrl } from '@/lib/net/public-url'
+import { isPublicHttpUrl, isPublicIp } from '@/lib/net/public-url'
 
 const publicLookup = async () => ['93.184.216.34']
 
@@ -83,6 +83,31 @@ describe('isPublicHttpUrl', () => {
     expect(await isPublicHttpUrl('http://[::ffff:127.0.0.1]:8000/', lookup)).toBe(false)
     expect(await isPublicHttpUrl('http://[2606:4700::1111]/', lookup)).toBe(true)
     expect(lookup).not.toHaveBeenCalled()
+  })
+
+  it('rejects transition ranges', () => {
+    for (const ip of [
+      '2002:0a00:0001::1',
+      '2001:0:4136:e378::1',
+      '::ffff:0:a00:5',
+      '198.18.0.1',
+      '198.19.255.255',
+      '192.0.0.1',
+      '192.0.2.10',
+      '198.51.100.7',
+      '203.0.113.9',
+      '2001:db8::1',
+    ]) {
+      expect(isPublicIp(ip), ip).toBe(false)
+    }
+    expect(isPublicIp('2002:0808:0808::1')).toBe(true)
+    expect(isPublicIp('::ffff:0:808:808')).toBe(true)
+    expect(isPublicIp('2001:4860::1')).toBe(true)
+    expect(isPublicIp('not an ip')).toBe(false)
+  })
+
+  it('uses the default lookup when none is given', async () => {
+    expect(await isPublicHttpUrl('http://localhost:8000/')).toBe(false)
   })
 
   it('rejects localhost by resolution', async () => {

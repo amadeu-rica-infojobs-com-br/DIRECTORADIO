@@ -2,6 +2,7 @@ import { eq, sql } from 'drizzle-orm'
 import type { Db } from '@/db/client'
 import { stations } from '@/db/schema'
 import { isPublicHttpUrl, type Lookup } from '@/lib/net/public-url'
+import { pinnedFetch } from '@/lib/net/pinned-dispatcher'
 
 export const HEALTH_HIDE_THRESHOLD = 3
 
@@ -21,7 +22,7 @@ export async function checkStream(
   url: string,
   opts: { timeoutMs?: number; fetchImpl?: typeof fetch; lookup?: Lookup } = {},
 ): Promise<boolean> {
-  const { timeoutMs = 8000, fetchImpl = fetch, lookup } = opts
+  const { timeoutMs = 8000, fetchImpl = pinnedFetch, lookup } = opts
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), timeoutMs)
   try {
