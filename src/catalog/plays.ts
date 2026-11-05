@@ -10,7 +10,7 @@ export async function recordPlay(db: Db, stationId: string, sessionId: string): 
       .select({ id: stations.id })
       .from(stations)
       .where(and(eq(stations.id, stationId), eq(stations.status, 'activa')))
-      .for('share')
+      .for('no key update')
     if (!station) return 'not-found'
 
     const inserted = await tx

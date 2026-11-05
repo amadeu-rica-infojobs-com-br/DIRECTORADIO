@@ -2,9 +2,13 @@
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 import { eq } from 'drizzle-orm'
+import postgres from 'postgres'
+import { drizzle } from 'drizzle-orm/postgres-js'
+import * as schema from '@/db/schema'
 import { plays, stations } from '@/db/schema'
 import { recordPlay } from '@/catalog/plays'
 import { createTestDb } from '../helpers/db'
+import { assertTestDbUrl } from '../helpers/assert-test-db'
 
 describe('recordPlay', () => {
   let ctx: Awaited<ReturnType<typeof createTestDb>>
@@ -70,5 +74,28 @@ describe('recordPlay', () => {
 
   it('returns not-found for an unknown station', async () => {
     expect(await recordPlay(ctx.db, randomUUID(), randomUUID())).toBe('not-found')
+  })
+
+  it('handles concurrent plays without deadlock', async () => {
+    const st = await addStation()
+    const client = postgres(assertTestDbUrl(process.env.DATABASE_URL_TEST), {
+      max: 15,
+      onnotice: () => {},
+    })
+    try {
+      const db = drizzle(client, { schema })
+      const shared = randomUUID()
+      const calls = [
+        ...Array.from({ length: 10 }, () => recordPlay(db, st.id, randomUUID())),
+        ...Array.from({ length: 5 }, () => recordPlay(db, st.id, shared)),
+      ]
+      const results = await Promise.allSettled(calls)
+      expect(results.filter((r) => r.status === 'rejected')).toHaveLength(0)
+      const values = results.map((r) => (r as PromiseFulfilledResult<string>).value)
+      expect(values.filter((v) => v === 'counted')).toHaveLength(11)
+      expect(await playCount(st.id)).toBe(11)
+    } finally {
+      await client.end()
+    }
   })
 })
