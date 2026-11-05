@@ -2,9 +2,8 @@ import { expect, test } from '@playwright/test'
 
 test('home lists Spanish stations first', async ({ page }) => {
   await page.goto('/')
-  const names = await page.locator('a[href^="/emisora/"]').locator('span.line-clamp-2').allTextContents()
-  expect(names[0]).toBe('Cadena SER')
-  expect(names.indexOf('Radio FR')).toBeGreaterThan(names.indexOf('Radio HTTP'))
+  const names = await page.getByTestId('station-card-name').allTextContents()
+  expect(names).toEqual(['Cadena SER', 'Radio HTTP', 'Radio FR'])
 })
 
 test('station page shows details and player', async ({ page }) => {
