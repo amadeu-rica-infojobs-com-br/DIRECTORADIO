@@ -74,7 +74,15 @@ export function StationDetail({ station }: { station: StationDetailData }) {
         </p>
       )}
 
-      <AudioPlayer streamUrl={station.streamUrl} stationName={station.name} />
+      <AudioPlayer
+        station={{
+          id: station.id,
+          slug: station.slug,
+          name: station.name,
+          logoUrl: station.logoUrl,
+          streamUrl: station.streamUrl,
+        }}
+      />
 
       {isHttpUrl(station.homepageUrl) && (
         <a
