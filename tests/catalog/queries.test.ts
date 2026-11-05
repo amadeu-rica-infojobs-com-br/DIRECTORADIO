@@ -87,6 +87,7 @@ describe('catalog queries', () => {
 
     const detail = await getStationBySlug(ctx.db, 'sick')
     expect(detail).not.toBeNull()
+    expect(detail!.id).toBe(row.id)
     expect(detail!.isHealthHidden).toBe(true)
     expect(detail!.tags).toEqual(['dance', 'rock'])
     expect(detail!.ratingAvg).toBe(4.5)

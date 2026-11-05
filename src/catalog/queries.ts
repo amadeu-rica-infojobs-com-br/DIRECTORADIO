@@ -17,6 +17,7 @@ export type StationCardData = {
 }
 
 export type StationDetailData = StationCardData & {
+  id: string
   description: string | null
   streamUrl: string
   homepageUrl: string | null
@@ -92,6 +93,7 @@ export async function getStationBySlug(db: Db, slug: string): Promise<StationDet
     .orderBy(asc(tags.name))
 
   return {
+    id: row.id,
     slug: row.slug,
     name: row.name,
     logoUrl: row.logoUrl,

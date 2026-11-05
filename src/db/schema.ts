@@ -1,5 +1,7 @@
 import {
+  bigserial,
   boolean,
+  index,
   integer,
   numeric,
   pgEnum,
@@ -82,6 +84,22 @@ export const tagGenres = pgTable('tag_genres', {
   tag: text('tag').primaryKey(),
   genre: genreEnum('genre').notNull(),
 })
+
+export const plays = pgTable(
+  'plays',
+  {
+    id: bigserial('id', { mode: 'number' }).primaryKey(),
+    stationId: uuid('station_id')
+      .notNull()
+      .references(() => stations.id, { onDelete: 'cascade' }),
+    sessionId: uuid('session_id').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('plays_station_session_idx').on(t.stationId, t.sessionId),
+    index('plays_created_at_idx').on(t.createdAt),
+  ],
+)
 
 export type Station = typeof stations.$inferSelect
 export type NewStation = typeof stations.$inferInsert
