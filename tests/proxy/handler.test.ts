@@ -13,6 +13,17 @@ const ID_REDIRECT = '44444444-4444-4444-8444-444444444444'
 const ID_500 = '55555555-5555-4555-8555-555555555555'
 const ID_HANG = '66666666-6666-4666-8666-666666666666'
 const ID_UNKNOWN = '77777777-7777-4777-8777-777777777777'
+const ID_REDIRECT_OK = '88888888-8888-4888-8888-888888888888'
+const ID_REDIRECT_3 = '99999999-9999-4999-8999-999999999999'
+const ID_REDIRECT_LOOP = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+
+const REDIRECTS: Record<string, string> = {
+  '/redirect-ok': '/audio',
+  '/redirect-3': '/hop-2',
+  '/hop-2': '/hop-3',
+  '/hop-3': '/audio',
+  '/redirect-loop': '/redirect-loop',
+}
 
 const servers: http.Server[] = []
 const sockets = new Set<import('node:net').Socket>()
@@ -35,6 +46,12 @@ async function startUpstream(): Promise<string> {
     markUpstreamClosed = resolve
   })
   const upstream = http.createServer((req, res) => {
+    const target = REDIRECTS[req.url ?? '']
+    if (target) {
+      res.writeHead(302, { Location: target })
+      res.end()
+      return
+    }
     switch (req.url) {
       case '/audio': {
         res.writeHead(200, { 'Content-Type': 'audio/mpeg', 'Set-Cookie': 'a=b', 'icy-name': 'x' })
@@ -82,6 +99,9 @@ async function startProxy(overrides: Partial<ProxyDeps> = {}) {
     [ID_REDIRECT]: `${base}/redirect-private`,
     [ID_500]: `${base}/500`,
     [ID_HANG]: `${base}/hang`,
+    [ID_REDIRECT_OK]: `${base}/redirect-ok`,
+    [ID_REDIRECT_3]: `${base}/redirect-3`,
+    [ID_REDIRECT_LOOP]: `${base}/redirect-loop`,
   }
   const limiter = overrides.limiter ?? new ConnectionLimiter(3, 200)
   const deps: ProxyDeps = {
@@ -149,6 +169,37 @@ describe('audio proxy handler', () => {
   it('blocks redirect to private address', async () => {
     const { proxy } = await startProxy()
     expect((await fetch(`${proxy}/stream/${ID_REDIRECT}`)).status).toBe(502)
+  })
+
+  it('follows a relative redirect to the stream', async () => {
+    const { proxy } = await startProxy()
+    const ac = new AbortController()
+    const res = await fetch(`${proxy}/stream/${ID_REDIRECT_OK}`, { signal: ac.signal })
+    expect(res.status).toBe(200)
+    expect(res.headers.get('content-type')).toBe('audio/mpeg')
+    const reader = res.body!.getReader()
+    await reader.read()
+    const second = await reader.read()
+    expect(second.done).toBe(false)
+    ac.abort()
+  })
+
+  it('follows a chain of exactly 3 redirects', async () => {
+    const { proxy } = await startProxy()
+    const ac = new AbortController()
+    const res = await fetch(`${proxy}/stream/${ID_REDIRECT_3}`, { signal: ac.signal })
+    expect(res.status).toBe(200)
+    expect(res.headers.get('content-type')).toBe('audio/mpeg')
+    const reader = res.body!.getReader()
+    await reader.read()
+    const second = await reader.read()
+    expect(second.done).toBe(false)
+    ac.abort()
+  })
+
+  it('returns 502 on a redirect loop', async () => {
+    const { proxy } = await startProxy()
+    expect((await fetch(`${proxy}/stream/${ID_REDIRECT_LOOP}`)).status).toBe(502)
   })
 
   it('returns 502 when upstream is not 2xx', async () => {
