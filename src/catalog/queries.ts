@@ -2,7 +2,7 @@ import { and, asc, eq, sql } from 'drizzle-orm'
 import type { Db } from '@/db/client'
 import { stations, stationTags, tags } from '@/db/schema'
 import type { Genre } from '@/lib/genres'
-import { HEALTH_HIDE_THRESHOLD } from '@/catalog/health'
+import { HEALTH_HIDE_THRESHOLD } from '@/catalog/constants'
 
 export const HOME_PAGE_SIZE = 48
 export const OWN_RANKING_FULL_AT = 1000

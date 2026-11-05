@@ -3,6 +3,7 @@ import { Readable } from 'node:stream'
 import type { ReadableStream as NodeWebReadableStream } from 'node:stream/web'
 import { pipeline } from 'node:stream'
 import { STREAM_REQUEST_HEADERS } from '@/catalog/health'
+import { isProxyableAudioContentType } from '@/lib/stream-policy'
 import type { ConnectionLimiter } from '@/proxy/limits'
 
 export type ProxyDeps = {
@@ -16,15 +17,6 @@ export type ProxyDeps = {
 
 const MAX_REDIRECTS = 3
 const STREAM_PATH = /^\/stream\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i
-const ACCEPTED_APPLICATION_TYPES = ['application/ogg', 'application/octet-stream']
-// audio/* also covers playlist formats (.pls/.m3u/.asx), which are not audio streams.
-const PLAYLIST_SUBTYPE = /mpegurl|scpls|x-pls|playlist|x-ms-asx|x-pn-realaudio/
-
-function isAcceptedContentType(contentType: string | null): boolean {
-  const type = (contentType ?? '').split(';')[0].trim().toLowerCase()
-  if (ACCEPTED_APPLICATION_TYPES.includes(type)) return true
-  return type.startsWith('audio/') && !PLAYLIST_SUBTYPE.test(type)
-}
 
 export function createProxyHandler(deps: ProxyDeps) {
   const { findStreamUrl, fetchImpl, isAllowedUrl, limiter, webOrigin, headersTimeoutMs } = deps
@@ -126,7 +118,7 @@ export function createProxyHandler(deps: ProxyDeps) {
       }
 
       const contentType = upstream.headers.get('content-type')
-      if (!isAcceptedContentType(contentType)) {
+      if (!isProxyableAudioContentType(contentType)) {
         await upstream.body.cancel().catch(() => {})
         return fail(res, 415)
       }

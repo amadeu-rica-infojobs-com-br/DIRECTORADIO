@@ -3,25 +3,15 @@ import type { Db } from '@/db/client'
 import { stations } from '@/db/schema'
 import { isPublicHttpUrl, type Lookup } from '@/lib/net/public-url'
 import { pinnedFetch } from '@/lib/net/pinned-dispatcher'
+import { isPlayableByPlayer } from '@/lib/stream-policy'
 
-export const HEALTH_HIDE_THRESHOLD = 3
+export { HEALTH_HIDE_THRESHOLD } from '@/catalog/constants'
 
 const MAX_REDIRECTS = 3
 export const STREAM_REQUEST_HEADERS = {
   'User-Agent': 'DirectoRadio/0.1 (+https://directoradio.com)',
   'Icy-MetaData': '0',
 } as const
-const OK_APPLICATION_TYPES = [
-  'application/ogg',
-  'application/octet-stream',
-  'application/vnd.apple.mpegurl',
-  'application/x-mpegurl',
-]
-
-function isStreamContentType(contentType: string | null): boolean {
-  const type = (contentType ?? '').split(';')[0].trim().toLowerCase()
-  return type.startsWith('audio/') || OK_APPLICATION_TYPES.includes(type)
-}
 
 export async function checkStream(
   url: string,
@@ -49,7 +39,8 @@ export async function checkStream(
         current = new URL(location, current).toString()
         continue
       }
-      return res.status >= 200 && res.status < 300 && isStreamContentType(res.headers.get('content-type'))
+      // El reproductor decide por la URL guardada, así que la salud se mide con esa misma URL.
+      return res.status >= 200 && res.status < 300 && isPlayableByPlayer(url, res.headers.get('content-type'))
     }
   } catch {
     return false

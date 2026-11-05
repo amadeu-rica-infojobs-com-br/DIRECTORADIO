@@ -1,6 +1,6 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { PlayerProvider, usePlayer } from '@/player/PlayerProvider'
+import { PlayerProvider, usePlayer, CONNECT_TIMEOUT_MS } from '@/player/PlayerProvider'
 import type { PlayableStation } from '@/player/source'
 
 type HlsHandler = (event: string, data: unknown) => void
@@ -127,6 +127,7 @@ beforeEach(() => {
 afterEach(() => {
   // Desmontar antes de restaurar: si no, la limpieza de RTL usa el audio real de jsdom.
   cleanup()
+  vi.useRealTimers()
   vi.unstubAllGlobals()
   vi.restoreAllMocks()
 })
@@ -293,5 +294,88 @@ describe('PlayerProvider', () => {
     click('play HLS')
     await waitFor(() => expect(status()).toBe('error'))
     expect(hls.created).toBe(0)
+  })
+
+  it('buffering goes playing -> connecting -> playing', () => {
+    render(
+      <PlayerProvider>
+        <Harness />
+      </PlayerProvider>,
+    )
+
+    click('play A')
+    fireEvent(getAudio(), new Event('playing'))
+    expect(status()).toBe('playing')
+
+    fireEvent(getAudio(), new Event('waiting'))
+    expect(status()).toBe('connecting')
+    fireEvent(getAudio(), new Event('playing'))
+    expect(status()).toBe('playing')
+
+    fireEvent(getAudio(), new Event('stalled'))
+    expect(status()).toBe('connecting')
+  })
+
+  it('gives up when it stays connecting past the timeout', () => {
+    vi.useFakeTimers()
+    render(
+      <PlayerProvider>
+        <Harness />
+      </PlayerProvider>,
+    )
+
+    click('play A')
+    expect(status()).toBe('connecting')
+
+    act(() => void vi.advanceTimersByTime(CONNECT_TIMEOUT_MS - 1))
+    expect(status()).toBe('connecting')
+
+    act(() => void vi.advanceTimersByTime(1))
+    expect(status()).toBe('error')
+    expect(srcAtLoad).toEqual([null])
+    expect(getAudio().getAttribute('src')).toBeNull()
+  })
+
+  it('does not give up once it is playing', () => {
+    vi.useFakeTimers()
+    render(
+      <PlayerProvider>
+        <Harness />
+      </PlayerProvider>,
+    )
+
+    click('play A')
+    fireEvent(getAudio(), new Event('playing'))
+    act(() => void vi.advanceTimersByTime(CONNECT_TIMEOUT_MS * 2))
+    expect(status()).toBe('playing')
+  })
+
+  it('releases the stream when play() is rejected', async () => {
+    vi.spyOn(HTMLMediaElement.prototype, 'play').mockRejectedValue(
+      new DOMException('needs a gesture', 'NotAllowedError'),
+    )
+    render(
+      <PlayerProvider>
+        <Harness />
+      </PlayerProvider>,
+    )
+
+    click('play A')
+    await waitFor(() => expect(status()).toBe('paused'))
+    expect(srcAtLoad).toEqual([null])
+    expect(getAudio().getAttribute('src')).toBeNull()
+  })
+
+  it('errors and releases when play() fails for another reason', async () => {
+    vi.spyOn(HTMLMediaElement.prototype, 'play').mockRejectedValue(new Error('boom'))
+    render(
+      <PlayerProvider>
+        <Harness />
+      </PlayerProvider>,
+    )
+
+    click('play A')
+    await waitFor(() => expect(status()).toBe('error'))
+    expect(srcAtLoad).toEqual([null])
   })
 })

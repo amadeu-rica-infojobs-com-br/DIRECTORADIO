@@ -18,6 +18,9 @@ export type PlayerApi = {
 
 const PlayerContext = createContext<PlayerApi | null>(null)
 
+// Un directo que no arranca deja el reproductor mudo pero «conectando»: a los 15 s se corta.
+export const CONNECT_TIMEOUT_MS = 15000
+
 export function usePlayer(): PlayerApi {
   const api = useContext(PlayerContext)
   if (!api) throw new Error('usePlayer necesita un <PlayerProvider>')
@@ -25,10 +28,16 @@ export function usePlayer(): PlayerApi {
 }
 
 function isAutoplayBlocked(error: unknown): boolean {
-  return error instanceof Error && error.name === 'NotAllowedError'
+  return (error as { name?: string } | null)?.name === 'NotAllowedError'
 }
 
-export function PlayerProvider({ children }: { children: ReactNode }) {
+export function PlayerProvider({
+  children,
+  connectTimeoutMs = CONNECT_TIMEOUT_MS,
+}: {
+  children: ReactNode
+  connectTimeoutMs?: number
+}) {
   const [current, setCurrent] = useState<PlayableStation | null>(null)
   const [status, setStatus] = useState<PlayerStatus>('idle')
   const audioRef = useRef<HTMLAudioElement | null>(null)
@@ -36,6 +45,28 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const activeRef = useRef<{ station: PlayableStation; token: number } | null>(null)
   const tokenRef = useRef(0)
   const countedRef = useRef<Set<string>>(new Set())
+  const connectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  function clearConnectTimer() {
+    if (connectTimerRef.current === null) return
+    clearTimeout(connectTimerRef.current)
+    connectTimerRef.current = null
+  }
+
+  // Toda transición pasa por aquí para que el vigilante solo corra mientras se conecta.
+  function updateStatus(next: PlayerStatus) {
+    clearConnectTimer()
+    if (next === 'connecting') {
+      const token = tokenRef.current
+      connectTimerRef.current = setTimeout(() => {
+        connectTimerRef.current = null
+        if (tokenRef.current !== token) return
+        detach()
+        setStatus('error')
+      }, connectTimeoutMs)
+    }
+    setStatus(next)
+  }
 
   // Quitar el src no basta: hasta load() la conexión del directo sigue abierta.
   function releaseStream() {
@@ -55,6 +86,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   function detach() {
     tokenRef.current += 1
     activeRef.current = null
+    clearConnectTimer()
     releaseStream()
   }
 
@@ -86,18 +118,25 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     audio.addEventListener('playing', () => {
       const station = activeStation()
       if (!station) return
-      setStatus('playing')
+      updateStatus('playing')
       recordPlay(station)
     })
+    // Sin esto el mini reproductor anuncia «En directo» mientras el búfer está vacío.
+    for (const event of ['waiting', 'stalled']) {
+      audio.addEventListener(event, () => {
+        if (!activeStation()) return
+        updateStatus('connecting')
+      })
+    }
     audio.addEventListener('error', () => {
       if (!activeStation()) return
       detach()
-      setStatus('error')
+      updateStatus('error')
     })
     audio.addEventListener('ended', () => {
       if (!activeStation()) return
       detach()
-      setStatus('paused')
+      updateStatus('paused')
     })
     document.body.appendChild(audio)
     audioRef.current = audio
@@ -109,8 +148,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       await audio.play()
     } catch (error) {
       if (tokenRef.current !== token) return
-      // Sin gesto del usuario el navegador rechaza play(): dejamos la emisora lista para reintentar.
-      setStatus(isAutoplayBlocked(error) ? 'paused' : 'error')
+      // Sin gesto del usuario el navegador rechaza play(): soltamos la conexión y dejamos la emisora lista para reintentar.
+      detach()
+      updateStatus(isAutoplayBlocked(error) ? 'paused' : 'error')
     }
   }
 
@@ -119,7 +159,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       const { default: Hls } = await import('hls.js')
       if (tokenRef.current !== token) return
       if (!Hls.isSupported()) {
-        setStatus('error')
+        updateStatus('error')
         return
       }
       const hls = new Hls()
@@ -128,14 +168,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       hls.on(Hls.Events.ERROR, (_event, data) => {
         if (!data.fatal || tokenRef.current !== token) return
         detach()
-        setStatus('error')
+        updateStatus('error')
       })
       hls.loadSource(src)
       hls.attachMedia(audio)
     } catch {
       if (tokenRef.current !== token) return
       detach()
-      setStatus('error')
+      updateStatus('error')
       return
     }
     await startPlayback(audio, token)
@@ -147,7 +187,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     const audio = ensureAudio()
     activeRef.current = { station, token }
     setCurrent(station)
-    setStatus('connecting')
+    updateStatus('connecting')
     if (source.kind === 'hls' && !audio.canPlayType('application/vnd.apple.mpegurl')) {
       void startHls(audio, source.src, token)
       return
@@ -161,7 +201,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     if (!source) {
       detach()
       setCurrent(station)
-      setStatus('error')
+      updateStatus('error')
       return
     }
     start(station, source)
@@ -170,7 +210,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   function pause() {
     if (!activeRef.current) return
     detach()
-    setStatus('paused')
+    updateStatus('paused')
   }
 
   function resume() {
@@ -180,13 +220,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   function stop() {
     detach()
     setCurrent(null)
-    setStatus('idle')
+    updateStatus('idle')
   }
 
   useEffect(() => {
     return () => {
       tokenRef.current += 1
       activeRef.current = null
+      clearConnectTimer()
       hlsRef.current?.destroy()
       hlsRef.current = null
       const audio = audioRef.current

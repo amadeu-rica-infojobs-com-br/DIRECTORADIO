@@ -11,12 +11,13 @@ export function MiniPlayer() {
 
   const sounding = status === 'playing' || status === 'connecting'
   const toggleLabel = sounding ? t('station.pause') : t('station.listen')
+  const isError = status === 'error'
   const statusText =
     status === 'connecting'
       ? t('player.connecting')
       : status === 'playing'
         ? t('player.live')
-        : status === 'error'
+        : isError
           ? t('player.error')
           : null
 
@@ -34,8 +35,10 @@ export function MiniPlayer() {
           </Link>
           {statusText && (
             <p
+              role={isError ? 'alert' : 'status'}
+              aria-live={isError ? undefined : 'polite'}
               className={
-                status === 'error'
+                isError
                   ? 'truncate text-sm text-amber-700 dark:text-amber-400'
                   : 'truncate text-sm text-neutral-500'
               }

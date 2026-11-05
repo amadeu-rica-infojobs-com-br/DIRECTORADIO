@@ -53,7 +53,10 @@ export function createPinnedDispatcher(
   return new Agent({ connect })
 }
 
-const defaultDispatcher = createPinnedDispatcher()
+// Perezoso: importar este módulo no debe abrir un Agent en el bundle de Next.
+let defaultDispatcher: Dispatcher | undefined
 
-export const pinnedFetch = ((input: Parameters<typeof undiciFetch>[0], init?: Parameters<typeof undiciFetch>[1]) =>
-  undiciFetch(input, { ...init, dispatcher: defaultDispatcher })) as unknown as typeof fetch
+export const pinnedFetch = ((input: Parameters<typeof undiciFetch>[0], init?: Parameters<typeof undiciFetch>[1]) => {
+  defaultDispatcher ??= createPinnedDispatcher()
+  return undiciFetch(input, { ...init, dispatcher: defaultDispatcher })
+}) as unknown as typeof fetch

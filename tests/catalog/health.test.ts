@@ -92,11 +92,26 @@ describe('checkStream', () => {
     expect(await check(200, 'audio/mpeg')).toBe(true)
     expect(await check(200, 'audio/aacp')).toBe(true)
     expect(await check(200, 'application/ogg')).toBe(true)
-    expect(await check(200, 'application/vnd.apple.mpegurl')).toBe(true)
-    expect(await check(200, 'application/x-mpegurl')).toBe(true)
     expect(await check(200, 'text/html')).toBe(false)
     expect(await check(200)).toBe(false)
     expect(await check(404, 'audio/mpeg')).toBe(false)
+  })
+
+  it('only marks ok what the player can actually play', async () => {
+    const check = (url: string, type: string) =>
+      checkStream(url, {
+        lookup: publicLookup,
+        fetchImpl: (async () => response(200, { 'content-type': type })) as unknown as typeof fetch,
+      })
+    // El reproductor no proxia segmentos HLS, así que http + HLS no es reproducible.
+    expect(await check('http://stream.example/live.m3u8', 'application/vnd.apple.mpegurl')).toBe(false)
+    expect(await check('http://stream.example/s', 'application/x-mpegurl')).toBe(false)
+    expect(await check('https://stream.example/live.m3u8', 'application/vnd.apple.mpegurl')).toBe(true)
+    expect(await check('https://stream.example/s', 'application/x-mpegurl')).toBe(true)
+    // Listas de reproducción: el reproductor no las interpreta.
+    expect(await check('http://stream.example/lista.pls', 'audio/x-scpls')).toBe(false)
+    expect(await check('https://stream.example/lista.m3u', 'audio/mpeg')).toBe(false)
+    expect(await check('https://stream.example/s', 'audio/x-scpls')).toBe(false)
   })
 
   it('returns false on fetch errors and timeouts', async () => {
