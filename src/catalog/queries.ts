@@ -1,10 +1,12 @@
-import { and, asc, desc, eq, sql } from 'drizzle-orm'
+import { and, asc, eq, sql } from 'drizzle-orm'
 import type { Db } from '@/db/client'
 import { stations, stationTags, tags } from '@/db/schema'
 import type { Genre } from '@/lib/genres'
 import { HEALTH_HIDE_THRESHOLD } from '@/catalog/health'
 
 export const HOME_PAGE_SIZE = 48
+export const OWN_RANKING_FULL_AT = 1000
+export const RANKING_WINDOW_DAYS = 30
 
 export type StationCardData = {
   slug: string
@@ -44,29 +46,48 @@ export async function getHomeStations(
     .from(stations)
     .where(visible)
 
-  const rows = await db
-    .select({
-      slug: stations.slug,
-      name: stations.name,
-      logoUrl: stations.logoUrl,
-      countryCode: stations.countryCode,
-      genre: stations.genre,
-      ratingAvg: stations.ratingAvg,
-      ratingCount: stations.ratingCount,
-    })
-    .from(stations)
-    .where(visible)
-    .orderBy(
-      desc(sql`coalesce(${stations.countryCode} = 'ES', false)`),
-      desc(sql`coalesce(${stations.rbClickCount}, 0)`),
-      asc(stations.name),
-      asc(stations.slug),
+  const rows = await db.execute<{
+    slug: string
+    name: string
+    logoUrl: string | null
+    countryCode: string | null
+    genre: Genre
+    ratingAvg: string | null
+    ratingCount: number | null
+  }>(sql`
+    WITH window_plays AS (
+      SELECT station_id, count(*)::int AS n
+      FROM plays
+      WHERE created_at > now() - make_interval(days => ${RANKING_WINDOW_DAYS})
+      GROUP BY station_id
+    ),
+    total AS (SELECT coalesce(sum(n), 0)::float8 AS p FROM window_plays),
+    visible AS (
+      SELECT s.*, coalesce(wp.n, 0) AS plays30d, coalesce(s.rb_click_count, 0) AS clicks
+      FROM stations s
+      LEFT JOIN window_plays wp ON wp.station_id = s.id
+      WHERE s.status = 'activa' AND coalesce(s.health_consecutive_failures, 0) < ${HEALTH_HIDE_THRESHOLD}
+    ),
+    maxes AS (
+      SELECT coalesce(max(plays30d), 0)::float8 AS max_plays, coalesce(max(clicks), 0)::float8 AS max_clicks
+      FROM visible
     )
-    .limit(HOME_PAGE_SIZE)
-    .offset((currentPage - 1) * HOME_PAGE_SIZE)
+    SELECT v.slug, v.name, v.logo_url AS "logoUrl", v.country_code AS "countryCode", v.genre,
+           v.rating_avg AS "ratingAvg", v.rating_count AS "ratingCount"
+    FROM visible v, total, maxes
+    ORDER BY (
+      least(1, total.p / ${OWN_RANKING_FULL_AT}::float8)
+        * CASE WHEN maxes.max_plays > 0 THEN v.plays30d / maxes.max_plays ELSE 0 END
+      + (1 - least(1, total.p / ${OWN_RANKING_FULL_AT}::float8))
+        * (CASE WHEN coalesce(v.country_code = 'ES', false) THEN 0.5 ELSE 0 END
+           + CASE WHEN maxes.max_clicks > 0
+                  THEN 0.49 * ln(1 + v.clicks::float8) / ln(1 + maxes.max_clicks) ELSE 0 END)
+    ) DESC, v.name ASC, v.slug ASC
+    LIMIT ${HOME_PAGE_SIZE} OFFSET ${(currentPage - 1) * HOME_PAGE_SIZE}
+  `)
 
   return {
-    items: rows.map((r) => ({
+    items: Array.from(rows, (r) => ({
       ...r,
       ratingAvg: Number(r.ratingAvg ?? 0),
       ratingCount: r.ratingCount ?? 0,

@@ -1,4 +1,5 @@
 // @vitest-environment node
+import { sql } from 'drizzle-orm'
 import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 import { stations, stationTags, tags } from '@/db/schema'
 import { getHomeStations, getStationBySlug, HOME_PAGE_SIZE } from '@/catalog/queries'
@@ -37,6 +38,47 @@ describe('catalog queries', () => {
     const { items, total } = await getHomeStations(ctx.db, 1)
     expect(items.map((s) => s.slug)).toEqual(['es-500', 'es-10', 'fr-1000', 'pt-50'])
     expect(total).toBe(4)
+  })
+
+  async function seedRankingStations() {
+    await ctx.db.insert(stations).values([
+      station('es-10', { countryCode: 'ES', rbClickCount: 10 }),
+      station('fr-1000', { countryCode: 'FR', rbClickCount: 1000 }),
+      station('es-500', { countryCode: 'ES', rbClickCount: 500 }),
+      station('pt-50', { countryCode: 'PT', rbClickCount: 50 }),
+    ])
+  }
+
+  async function insertPlays(slug: string, count: number, ageDays = 0) {
+    await ctx.db.execute(sql`
+      INSERT INTO plays (station_id, session_id, created_at)
+      SELECT s.id, gen_random_uuid(), now() - make_interval(days => ${ageDays})
+      FROM stations s, generate_series(1, ${count})
+      WHERE s.slug = ${slug}
+    `)
+  }
+
+  it('orders by plays30d once own data is full', async () => {
+    await seedRankingStations()
+    await insertPlays('fr-1000', 600)
+    await insertPlays('pt-50', 400)
+    const { items } = await getHomeStations(ctx.db, 1)
+    // w = 1: the legacy score is ignored, so zero-play ties fall back to name ASC.
+    expect(items.map((s) => s.slug)).toEqual(['fr-1000', 'pt-50', 'es-10', 'es-500'])
+  })
+
+  it('ignores plays older than 30 days', async () => {
+    await seedRankingStations()
+    await insertPlays('fr-1000', 1000, 31)
+    const { items } = await getHomeStations(ctx.db, 1)
+    expect(items.map((s) => s.slug)).toEqual(['es-500', 'es-10', 'fr-1000', 'pt-50'])
+  })
+
+  it('blends own plays and legacy score when partial', async () => {
+    await seedRankingStations()
+    await insertPlays('pt-50', 500)
+    const { items } = await getHomeStations(ctx.db, 1)
+    expect(items.map((s) => s.slug)).toEqual(['pt-50', 'es-500', 'es-10', 'fr-1000'])
   })
 
   it('hides inactive and unhealthy stations from home', async () => {
