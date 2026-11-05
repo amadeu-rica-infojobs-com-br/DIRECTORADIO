@@ -7,6 +7,13 @@ type Seed = typeof stations.$inferInsert
 
 const base = { source: 'e2e', healthConsecutiveFailures: 0 } as const
 
+export const STREAM_URLS = {
+  cadenaSer: 'https://e2e.example/cadena-ser',
+  radioFr: 'https://e2e.example/radio-fr',
+  radioHttp: 'http://e2e.example/radio-http',
+  radioOff: 'https://e2e.example/radio-off',
+} as const
+
 const SEED: Seed[] = [
   {
     ...base,
@@ -14,7 +21,7 @@ const SEED: Seed[] = [
     name: 'Cadena SER',
     countryCode: 'ES',
     genre: 'generalista',
-    streamUrl: 'https://e2e.example/cadena-ser',
+    streamUrl: STREAM_URLS.cadenaSer,
     externalId: 'e2e-cadena-ser',
     rbClickCount: 500,
   },
@@ -24,7 +31,7 @@ const SEED: Seed[] = [
     name: 'Radio FR',
     countryCode: 'FR',
     genre: 'pop',
-    streamUrl: 'https://e2e.example/radio-fr',
+    streamUrl: STREAM_URLS.radioFr,
     externalId: 'e2e-radio-fr',
     rbClickCount: 1000,
   },
@@ -34,7 +41,7 @@ const SEED: Seed[] = [
     name: 'Radio HTTP',
     countryCode: 'ES',
     genre: 'variada',
-    streamUrl: 'http://e2e.example/radio-http',
+    streamUrl: STREAM_URLS.radioHttp,
     externalId: 'e2e-radio-http',
     rbClickCount: 10,
   },
@@ -45,7 +52,7 @@ const SEED: Seed[] = [
     countryCode: 'ES',
     genre: 'variada',
     status: 'desactivada',
-    streamUrl: 'https://e2e.example/radio-off',
+    streamUrl: STREAM_URLS.radioOff,
     externalId: 'e2e-radio-off',
     rbClickCount: 5,
   },

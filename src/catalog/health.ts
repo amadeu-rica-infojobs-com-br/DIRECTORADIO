@@ -2,26 +2,22 @@ import { eq, sql } from 'drizzle-orm'
 import type { Db } from '@/db/client'
 import { stations } from '@/db/schema'
 import { isPublicHttpUrl, type Lookup } from '@/lib/net/public-url'
+import { pinnedFetch } from '@/lib/net/pinned-dispatcher'
+import { isPlayableByPlayer } from '@/lib/stream-policy'
 
-export const HEALTH_HIDE_THRESHOLD = 3
+export { HEALTH_HIDE_THRESHOLD } from '@/catalog/constants'
 
 const MAX_REDIRECTS = 3
-const OK_APPLICATION_TYPES = [
-  'application/ogg',
-  'application/vnd.apple.mpegurl',
-  'application/x-mpegurl',
-]
-
-function isStreamContentType(contentType: string | null): boolean {
-  const type = (contentType ?? '').split(';')[0].trim().toLowerCase()
-  return type.startsWith('audio/') || OK_APPLICATION_TYPES.includes(type)
-}
+export const STREAM_REQUEST_HEADERS = {
+  'User-Agent': 'DirectoRadio/0.1 (+https://directoradio.com)',
+  'Icy-MetaData': '0',
+} as const
 
 export async function checkStream(
   url: string,
   opts: { timeoutMs?: number; fetchImpl?: typeof fetch; lookup?: Lookup } = {},
 ): Promise<boolean> {
-  const { timeoutMs = 8000, fetchImpl = fetch, lookup } = opts
+  const { timeoutMs = 8000, fetchImpl = pinnedFetch, lookup } = opts
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), timeoutMs)
   try {
@@ -29,7 +25,12 @@ export async function checkStream(
     for (let redirects = 0; ; redirects++) {
       if (!(await isPublicHttpUrl(current, lookup))) return false
 
-      const res = await fetchImpl(current, { method: 'GET', redirect: 'manual', signal: controller.signal })
+      const res = await fetchImpl(current, {
+        method: 'GET',
+        redirect: 'manual',
+        headers: STREAM_REQUEST_HEADERS,
+        signal: controller.signal,
+      })
       await res.body?.cancel().catch(() => {})
 
       if (res.status >= 300 && res.status < 400) {
@@ -38,7 +39,8 @@ export async function checkStream(
         current = new URL(location, current).toString()
         continue
       }
-      return res.status >= 200 && res.status < 300 && isStreamContentType(res.headers.get('content-type'))
+      // El reproductor decide por la URL guardada, así que la salud se mide con esa misma URL.
+      return res.status >= 200 && res.status < 300 && isPlayableByPlayer(url, res.headers.get('content-type'))
     }
   } catch {
     return false
@@ -50,7 +52,7 @@ export async function checkStream(
 export async function runHealthCheck(
   db: Db,
   opts: { concurrency?: number; check?: (url: string) => Promise<boolean> } = {},
-): Promise<{ checked: number; ok: number; failed: number }> {
+): Promise<{ checked: number; ok: number; failed: number; dbErrors: number }> {
   const { concurrency = 20, check = checkStream } = opts
 
   const rows = await db
@@ -61,6 +63,7 @@ export async function runHealthCheck(
   let next = 0
   let ok = 0
   let failed = 0
+  let dbErrors = 0
 
   async function worker() {
     while (next < rows.length) {
@@ -72,16 +75,20 @@ export async function runHealthCheck(
         healthy = false
       }
 
-      await db
-        .update(stations)
-        .set({
-          healthLastCheckedAt: new Date(),
-          healthLastOk: healthy,
-          healthConsecutiveFailures: healthy
-            ? 0
-            : sql`coalesce(${stations.healthConsecutiveFailures}, 0) + 1`,
-        })
-        .where(eq(stations.id, row.id))
+      try {
+        await db
+          .update(stations)
+          .set({
+            healthLastCheckedAt: new Date(),
+            healthLastOk: healthy,
+            healthConsecutiveFailures: healthy
+              ? 0
+              : sql`coalesce(${stations.healthConsecutiveFailures}, 0) + 1`,
+          })
+          .where(eq(stations.id, row.id))
+      } catch {
+        dbErrors++
+      }
 
       if (healthy) ok++
       else failed++
@@ -89,5 +96,5 @@ export async function runHealthCheck(
   }
 
   await Promise.all(Array.from({ length: Math.max(1, concurrency) }, worker))
-  return { checked: rows.length, ok, failed }
+  return { checked: rows.length, ok, failed, dbErrors }
 }

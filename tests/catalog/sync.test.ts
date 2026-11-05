@@ -200,6 +200,40 @@ describe('syncCatalog', () => {
     expect(on.deactivatedBySync).toBe(false)
   })
 
+  it('does not touch updatedAt when nothing changed', async () => {
+    const batch = [rb({ tags: 'news,talk', homepage: 'https://h.example', favicon: 'https://l/x.png' }), rb()]
+    await syncCatalog(ctx.db, batch)
+    const before = await ctx.db.select().from(stations)
+    await new Promise((r) => setTimeout(r, 20))
+    const report = await syncCatalog(ctx.db, batch)
+    expect(report.updated).toBe(0)
+    const after = await ctx.db.select().from(stations)
+    for (const b of before) {
+      expect(after.find((a) => a.id === b.id)?.updatedAt).toEqual(b.updatedAt)
+    }
+  })
+
+  it('updates updatedAt when click count changes', async () => {
+    const a = rb({ clickcount: 1 })
+    await syncCatalog(ctx.db, [a])
+    const [before] = await ctx.db.select().from(stations)
+    await new Promise((r) => setTimeout(r, 20))
+    const report = await syncCatalog(ctx.db, [{ ...a, clickcount: 2 }])
+    expect(report.updated).toBe(1)
+    const [after] = await ctx.db.select().from(stations)
+    expect(after.rbClickCount).toBe(2)
+    expect(after.updatedAt!.getTime()).toBeGreaterThan(before.updatedAt!.getTime())
+  })
+
+  it('updates when only tags change', async () => {
+    const a = rb({ tags: 'rock,metal' })
+    await syncCatalog(ctx.db, [a])
+    const report = await syncCatalog(ctx.db, [{ ...a, tags: 'rock,jazz' }])
+    expect(report.updated).toBe(1)
+    const [row] = await ctx.db.select().from(stations)
+    expect(await tagNamesOf(ctx.db, row.id)).toEqual(['jazz', 'rock'])
+  })
+
   it('never reactivates editorial deactivations', async () => {
     await ctx.db.insert(stations).values({
       slug: 'x',

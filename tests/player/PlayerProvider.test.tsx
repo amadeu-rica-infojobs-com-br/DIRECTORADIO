@@ -1,0 +1,381 @@
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { PlayerProvider, usePlayer, CONNECT_TIMEOUT_MS } from '@/player/PlayerProvider'
+import type { PlayableStation } from '@/player/source'
+
+type HlsHandler = (event: string, data: unknown) => void
+
+const hls = vi.hoisted(() => ({
+  created: 0,
+  sources: [] as string[],
+  attached: 0,
+  destroyed: 0,
+  handlers: {} as Record<string, HlsHandler>,
+  failImport: false,
+}))
+
+vi.mock('hls.js', () => {
+  class FakeHls {
+    static Events = { ERROR: 'hlsError' }
+    static isSupported(): boolean {
+      return true
+    }
+    constructor() {
+      hls.created += 1
+    }
+    on(event: string, handler: HlsHandler): void {
+      hls.handlers[event] = handler
+    }
+    loadSource(src: string): void {
+      hls.sources.push(src)
+    }
+    attachMedia(): void {
+      hls.attached += 1
+    }
+    destroy(): void {
+      hls.destroyed += 1
+    }
+  }
+  return {
+    get default() {
+      if (hls.failImport) throw new Error('chunk load failed')
+      return FakeHls
+    },
+  }
+})
+
+const A: PlayableStation = {
+  id: 'aaaaaaaa-0000-4000-8000-000000000001',
+  slug: 'radio-a',
+  name: 'Radio A',
+  logoUrl: null,
+  streamUrl: 'https://cdn.example/a',
+}
+const B: PlayableStation = {
+  id: 'bbbbbbbb-0000-4000-8000-000000000002',
+  slug: 'radio-b',
+  name: 'Radio B',
+  logoUrl: null,
+  streamUrl: 'https://cdn.example/b',
+}
+const HLS: PlayableStation = { ...A, streamUrl: 'https://cdn.example/live.m3u8' }
+
+let srcAtLoad: (string | null)[] = []
+let fetchMock: ReturnType<typeof vi.fn>
+
+function Harness() {
+  const { current, status, play, pause, resume, stop } = usePlayer()
+  return (
+    <div>
+      <span data-testid="status">{status}</span>
+      <span data-testid="current">{current?.id ?? 'none'}</span>
+      <button type="button" onClick={() => play(A)}>
+        play A
+      </button>
+      <button type="button" onClick={() => play(B)}>
+        play B
+      </button>
+      <button type="button" onClick={() => play(HLS)}>
+        play HLS
+      </button>
+      <button type="button" onClick={pause}>
+        pause
+      </button>
+      <button type="button" onClick={resume}>
+        resume
+      </button>
+      <button type="button" onClick={stop}>
+        stop
+      </button>
+    </div>
+  )
+}
+
+// El provider crea su único <audio> fuera del árbol de React y lo cuelga de <body>.
+function getAudio(): HTMLAudioElement {
+  const audio = document.querySelector<HTMLAudioElement>('audio[data-testid="dr-audio"]')
+  if (!audio) throw new Error('no audio element')
+  return audio
+}
+
+function click(name: string) {
+  fireEvent.click(screen.getByRole('button', { name }))
+}
+
+function status(): string {
+  return screen.getByTestId('status').textContent ?? ''
+}
+
+beforeEach(() => {
+  srcAtLoad = []
+  hls.created = 0
+  hls.sources = []
+  hls.attached = 0
+  hls.destroyed = 0
+  hls.handlers = {}
+  hls.failImport = false
+  sessionStorage.clear()
+  vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined)
+  vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {})
+  vi.spyOn(HTMLMediaElement.prototype, 'load').mockImplementation(function (this: HTMLMediaElement) {
+    srcAtLoad.push(this.getAttribute('src'))
+  })
+  fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 204 }))
+  vi.stubGlobal('fetch', fetchMock)
+})
+
+afterEach(() => {
+  // Desmontar antes de restaurar: si no, la limpieza de RTL usa el audio real de jsdom.
+  cleanup()
+  vi.useRealTimers()
+  vi.unstubAllGlobals()
+  vi.restoreAllMocks()
+})
+
+describe('PlayerProvider', () => {
+  it('switching station releases previous stream', () => {
+    render(
+      <PlayerProvider>
+        <Harness />
+      </PlayerProvider>,
+    )
+
+    click('play A')
+    expect(getAudio().getAttribute('src')).toBe(A.streamUrl)
+
+    click('play B')
+    expect(srcAtLoad).toEqual([null])
+    expect(getAudio().getAttribute('src')).toBe(B.streamUrl)
+    expect(screen.getByTestId('current')).toHaveTextContent(B.id)
+    expect(document.querySelectorAll('audio')).toHaveLength(1)
+  })
+
+  it('records play once per station per session', () => {
+    render(
+      <PlayerProvider>
+        <Harness />
+      </PlayerProvider>,
+    )
+
+    click('play A')
+    fireEvent(getAudio(), new Event('playing'))
+    click('pause')
+    click('resume')
+    fireEvent(getAudio(), new Event('playing'))
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(url).toBe('/api/reproducciones')
+    expect(init.method).toBe('POST')
+    expect(init.keepalive).toBe(true)
+    expect(JSON.parse(String(init.body))).toEqual({
+      stationId: A.id,
+      sessionId: sessionStorage.getItem('dr.session'),
+    })
+  })
+
+  it('records a play for each new station', () => {
+    render(
+      <PlayerProvider>
+        <Harness />
+      </PlayerProvider>,
+    )
+
+    click('play A')
+    fireEvent(getAudio(), new Event('playing'))
+    click('play B')
+    fireEvent(getAudio(), new Event('playing'))
+
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('status goes connecting -> playing -> paused', () => {
+    render(
+      <PlayerProvider>
+        <Harness />
+      </PlayerProvider>,
+    )
+
+    expect(status()).toBe('idle')
+    click('play A')
+    expect(status()).toBe('connecting')
+    fireEvent(getAudio(), new Event('playing'))
+    expect(status()).toBe('playing')
+    click('pause')
+    expect(status()).toBe('paused')
+    expect(srcAtLoad).toEqual([null])
+    expect(screen.getByTestId('current')).toHaveTextContent(A.id)
+  })
+
+  it('error status on media error', () => {
+    render(
+      <PlayerProvider>
+        <Harness />
+      </PlayerProvider>,
+    )
+
+    click('play A')
+    fireEvent(getAudio(), new Event('error'))
+    expect(status()).toBe('error')
+  })
+
+  it('ignores stale media events after stopping', () => {
+    render(
+      <PlayerProvider>
+        <Harness />
+      </PlayerProvider>,
+    )
+
+    click('play A')
+    click('stop')
+    fireEvent(getAudio(), new Event('playing'))
+
+    expect(status()).toBe('idle')
+    expect(screen.getByTestId('current')).toHaveTextContent('none')
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('uses hls.js for m3u8 streams and destroys it on switch', async () => {
+    render(
+      <PlayerProvider>
+        <Harness />
+      </PlayerProvider>,
+    )
+
+    click('play HLS')
+    await waitFor(() => expect(hls.sources).toEqual([HLS.streamUrl]))
+    expect(hls.attached).toBe(1)
+    expect(getAudio().getAttribute('src')).toBeNull()
+
+    click('play B')
+    expect(hls.destroyed).toBe(1)
+  })
+
+  it('hls fatal error sets error status', async () => {
+    render(
+      <PlayerProvider>
+        <Harness />
+      </PlayerProvider>,
+    )
+
+    click('play HLS')
+    await waitFor(() => expect(hls.handlers.hlsError).toBeDefined())
+    act(() => hls.handlers.hlsError('hlsError', { fatal: true }))
+
+    expect(status()).toBe('error')
+    expect(hls.destroyed).toBe(1)
+    expect(getAudio().getAttribute('src')).toBeNull()
+    expect(srcAtLoad).toEqual([null])
+  })
+
+  it('hls non-fatal error is ignored', async () => {
+    render(
+      <PlayerProvider>
+        <Harness />
+      </PlayerProvider>,
+    )
+
+    click('play HLS')
+    await waitFor(() => expect(hls.handlers.hlsError).toBeDefined())
+    act(() => hls.handlers.hlsError('hlsError', { fatal: false }))
+
+    expect(status()).toBe('connecting')
+    expect(hls.destroyed).toBe(0)
+  })
+
+  it('hls import failure sets error status', async () => {
+    hls.failImport = true
+    render(
+      <PlayerProvider>
+        <Harness />
+      </PlayerProvider>,
+    )
+
+    click('play HLS')
+    await waitFor(() => expect(status()).toBe('error'))
+    expect(hls.created).toBe(0)
+  })
+
+  it('buffering goes playing -> connecting -> playing', () => {
+    render(
+      <PlayerProvider>
+        <Harness />
+      </PlayerProvider>,
+    )
+
+    click('play A')
+    fireEvent(getAudio(), new Event('playing'))
+    expect(status()).toBe('playing')
+
+    fireEvent(getAudio(), new Event('waiting'))
+    expect(status()).toBe('connecting')
+    fireEvent(getAudio(), new Event('playing'))
+    expect(status()).toBe('playing')
+
+    fireEvent(getAudio(), new Event('stalled'))
+    expect(status()).toBe('connecting')
+  })
+
+  it('gives up when it stays connecting past the timeout', () => {
+    vi.useFakeTimers()
+    render(
+      <PlayerProvider>
+        <Harness />
+      </PlayerProvider>,
+    )
+
+    click('play A')
+    expect(status()).toBe('connecting')
+
+    act(() => void vi.advanceTimersByTime(CONNECT_TIMEOUT_MS - 1))
+    expect(status()).toBe('connecting')
+
+    act(() => void vi.advanceTimersByTime(1))
+    expect(status()).toBe('error')
+    expect(srcAtLoad).toEqual([null])
+    expect(getAudio().getAttribute('src')).toBeNull()
+  })
+
+  it('does not give up once it is playing', () => {
+    vi.useFakeTimers()
+    render(
+      <PlayerProvider>
+        <Harness />
+      </PlayerProvider>,
+    )
+
+    click('play A')
+    fireEvent(getAudio(), new Event('playing'))
+    act(() => void vi.advanceTimersByTime(CONNECT_TIMEOUT_MS * 2))
+    expect(status()).toBe('playing')
+  })
+
+  it('releases the stream when play() is rejected', async () => {
+    vi.spyOn(HTMLMediaElement.prototype, 'play').mockRejectedValue(
+      new DOMException('needs a gesture', 'NotAllowedError'),
+    )
+    render(
+      <PlayerProvider>
+        <Harness />
+      </PlayerProvider>,
+    )
+
+    click('play A')
+    await waitFor(() => expect(status()).toBe('paused'))
+    expect(srcAtLoad).toEqual([null])
+    expect(getAudio().getAttribute('src')).toBeNull()
+  })
+
+  it('errors and releases when play() fails for another reason', async () => {
+    vi.spyOn(HTMLMediaElement.prototype, 'play').mockRejectedValue(new Error('boom'))
+    render(
+      <PlayerProvider>
+        <Harness />
+      </PlayerProvider>,
+    )
+
+    click('play A')
+    await waitFor(() => expect(status()).toBe('error'))
+    expect(srcAtLoad).toEqual([null])
+  })
+})

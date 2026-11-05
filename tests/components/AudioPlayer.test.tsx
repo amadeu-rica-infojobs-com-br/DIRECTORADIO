@@ -2,82 +2,83 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AudioPlayer } from '@/components/AudioPlayer'
 import { t } from '@/i18n'
+import { PlayerProvider } from '@/player/PlayerProvider'
+import type { PlayableStation } from '@/player/source'
 
-let srcAtLoad: (string | null)[] = []
+const STATION: PlayableStation = {
+  id: 'aaaaaaaa-0000-4000-8000-000000000001',
+  slug: 'radio-a',
+  name: 'Radio A',
+  logoUrl: null,
+  streamUrl: 'https://cdn.example/a',
+}
+
+function renderPlayer(station: PlayableStation) {
+  return render(
+    <PlayerProvider>
+      <AudioPlayer station={station} />
+    </PlayerProvider>,
+  )
+}
+
+function getAudio(): HTMLAudioElement {
+  const audio = document.querySelector<HTMLAudioElement>('audio[data-testid="dr-audio"]')
+  if (!audio) throw new Error('no audio element')
+  return audio
+}
 
 beforeEach(() => {
-  srcAtLoad = []
-  vi.spyOn(HTMLMediaElement.prototype, 'load').mockImplementation(function (this: HTMLMediaElement) {
-    srcAtLoad.push(this.getAttribute('src'))
-  })
+  vi.stubEnv('NEXT_PUBLIC_AUDIO_PROXY_URL', '')
+  vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined)
+  vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {})
+  vi.spyOn(HTMLMediaElement.prototype, 'load').mockImplementation(() => {})
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status: 204 })))
 })
 
 afterEach(() => {
+  // Desmontar antes de restaurar: si no, la limpieza de RTL usa el audio real de jsdom.
   cleanup()
+  vi.unstubAllEnvs()
+  vi.unstubAllGlobals()
   vi.restoreAllMocks()
 })
 
 describe('AudioPlayer', () => {
-  it('shows notice for http streams', () => {
-    const { container } = render(<AudioPlayer streamUrl="http://x/s" stationName="Radio HTTP" />)
-    expect(screen.getByText(t('station.httpSoon'))).toBeInTheDocument()
-    expect(container.querySelector('audio')).toBeNull()
-    expect(screen.queryByRole('button')).toBeNull()
-  })
-
-  it('treats invalid URLs as not playable', () => {
-    render(<AudioPlayer streamUrl="not a url" stationName="X" />)
+  it('shows notice when source unavailable', () => {
+    renderPlayer({ ...STATION, streamUrl: 'http://cdn.example/a' })
     expect(screen.getByText(t('station.httpSoon'))).toBeInTheDocument()
     expect(screen.queryByRole('button')).toBeNull()
   })
 
-  it('toggles play/pause for https', async () => {
+  it('shows notice for invalid URLs', () => {
+    renderPlayer({ ...STATION, streamUrl: 'not a url' })
+    expect(screen.getByText(t('station.httpSoon'))).toBeInTheDocument()
+    expect(screen.queryByRole('button')).toBeNull()
+  })
+
+  it('starts global player', () => {
     const play = vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined)
-    const pause = vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {})
-    const { container } = render(<AudioPlayer streamUrl="https://x/s" stationName="Radio" />)
+    renderPlayer(STATION)
 
-    expect(container.querySelector('audio')).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: new RegExp(t('station.listen')) }))
+    fireEvent.click(screen.getByRole('button', { name: t('station.listen') }))
 
     expect(play).toHaveBeenCalledTimes(1)
-    expect(container.querySelector('audio')).toBeNull()
-    expect(await screen.findByText('⏸')).toBeInTheDocument()
+    expect(getAudio().getAttribute('src')).toBe(STATION.streamUrl)
+    expect(screen.getByText(t('player.connecting'))).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: t('station.pause') }))
-    expect(pause).toHaveBeenCalled()
-    expect(srcAtLoad).toEqual([null])
-    expect(screen.getByText('▶')).toBeInTheDocument()
+    fireEvent(getAudio(), new Event('playing'))
+    expect(screen.getByRole('button', { name: t('station.pause') })).toBeInTheDocument()
   })
 
-  it('plays again after pause', () => {
-    const play = vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined)
-    vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {})
-    render(<AudioPlayer streamUrl="https://x/s" stationName="Radio" />)
-    fireEvent.click(screen.getByRole('button', { name: new RegExp(t('station.listen')) }))
-    fireEvent.click(screen.getByRole('button', { name: t('station.pause') }))
-    fireEvent.click(screen.getByRole('button', { name: new RegExp(t('station.listen')) }))
-    expect(play).toHaveBeenCalledTimes(2)
-    expect(srcAtLoad).toEqual([null])
-  })
-
-  it('pauses audio on unmount', async () => {
-    vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined)
+  it('pauses the global player when this station is already playing', () => {
     const pause = vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {})
-    const { unmount } = render(<AudioPlayer streamUrl="https://x/s" stationName="Radio" />)
-    fireEvent.click(screen.getByRole('button'))
-    unmount()
-    expect(pause).toHaveBeenCalledTimes(1)
-    expect(srcAtLoad).toEqual([null])
-  })
+    renderPlayer(STATION)
 
-  it('shows unhealthy notice when audio errors', async () => {
-    vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {})
-    vi.spyOn(HTMLMediaElement.prototype, 'play').mockImplementation(function (this: HTMLMediaElement) {
-      this.dispatchEvent(new Event('error'))
-      return Promise.resolve()
-    })
-    render(<AudioPlayer streamUrl="https://x/s" stationName="Radio" />)
-    fireEvent.click(screen.getByRole('button'))
-    expect(await screen.findByText(t('station.unhealthy'))).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: t('station.listen') }))
+    fireEvent(getAudio(), new Event('playing'))
+    fireEvent.click(screen.getByRole('button', { name: t('station.pause') }))
+
+    expect(pause).toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: t('station.listen') })).toBeInTheDocument()
   })
 })

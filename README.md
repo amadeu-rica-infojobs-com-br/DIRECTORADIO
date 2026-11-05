@@ -19,6 +19,18 @@ npm run job:health            # comprueba los streams; es lento con el catálogo
 npm run dev
 ```
 
+Desde redes corporativas con proxy/inspección TLS muchos streams no responden; no ejecutes `job:health` contra tu BD local para ocultar emisoras: sus resultados solo son fiables desde el servidor de producción.
+
+## Proxy de audio
+
+Los streams se reproducen a través de un servicio aparte (`GET /stream/{id}`), que valida el origen contra SSRF y limita las conexiones (3 por IP, 200 en total).
+
+```bash
+npm run proxy                 # escucha en AUDIO_PROXY_PORT (4100); comprobación en /healthz
+```
+
+Variables: `AUDIO_PROXY_PORT`, `WEB_ORIGIN` (origen CORS permitido) y `NEXT_PUBLIC_AUDIO_PROXY_URL` (URL que usa el reproductor web).
+
 ## Tests
 
 ```bash
