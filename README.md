@@ -19,6 +19,8 @@ npm run job:health            # comprueba los streams; es lento con el catálogo
 npm run dev
 ```
 
+Desde redes corporativas con proxy/inspección TLS muchos streams no responden; no ejecutes `job:health` contra tu BD local para ocultar emisoras: sus resultados solo son fiables desde el servidor de producción.
+
 ## Tests
 
 ```bash

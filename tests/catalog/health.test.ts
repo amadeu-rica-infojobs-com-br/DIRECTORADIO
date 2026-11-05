@@ -2,7 +2,7 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { eq } from 'drizzle-orm'
 import { stations } from '@/db/schema'
-import { checkStream, runHealthCheck } from '@/catalog/health'
+import { checkStream, runHealthCheck, STREAM_REQUEST_HEADERS } from '@/catalog/health'
 import { createTestDb } from '../helpers/db'
 
 const publicLookup = async () => ['93.184.216.34']
@@ -56,6 +56,30 @@ describe('checkStream', () => {
       false,
     )
     expect(fetchImpl).toHaveBeenCalledTimes(4)
+  })
+
+  it('sends DirectoRadio headers', async () => {
+    const fetchImpl = vi.fn(async () =>
+      response(302, { location: '/live' }),
+    ) as unknown as typeof fetch
+    await checkStream('http://stream.example/s', { fetchImpl, lookup: publicLookup, timeoutMs: 1000 })
+    const calls = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls
+    expect(calls.length).toBeGreaterThan(1)
+    for (const [, init] of calls) {
+      expect(init.headers).toEqual(STREAM_REQUEST_HEADERS)
+    }
+    expect(STREAM_REQUEST_HEADERS).toEqual({
+      'User-Agent': 'DirectoRadio/0.1 (+https://directoradio.com)',
+      'Icy-MetaData': '0',
+    })
+  })
+
+  it('accepts octet-stream', async () => {
+    const fetchImpl = (async () =>
+      response(200, { 'content-type': 'application/octet-stream' })) as unknown as typeof fetch
+    expect(await checkStream('http://stream.example/s', { fetchImpl, lookup: publicLookup })).toBe(
+      true,
+    )
   })
 
   it('accepts audio content types', async () => {
@@ -142,7 +166,7 @@ describe('runHealthCheck', () => {
       check: async (url) => url.endsWith('/recovering'),
     })
 
-    expect(report).toEqual({ checked: 2, ok: 1, failed: 1 })
+    expect(report).toEqual({ checked: 2, ok: 1, failed: 1, dbErrors: 0 })
     const get = async (slug: string) =>
       (await ctx.db.select().from(stations).where(eq(stations.slug, slug)))[0]
 
@@ -176,7 +200,28 @@ describe('runHealthCheck', () => {
         return true
       },
     })
-    expect(report).toEqual({ checked: 5, ok: 4, failed: 1 })
+    expect(report).toEqual({ checked: 5, ok: 4, failed: 1, dbErrors: 0 })
     expect(peak).toBeLessThanOrEqual(2)
+  })
+
+  it('continues after a db error', async () => {
+    await ctx.db.insert(stations).values(['a', 'b', 'c'].map((s) => station(s)))
+    let updates = 0
+    const flakyDb = new Proxy(ctx.db, {
+      get(target, prop, receiver) {
+        if (prop !== 'update') return Reflect.get(target, prop, receiver)
+        return (table: typeof stations) => {
+          if (++updates === 2) throw new Error('db down')
+          return target.update(table)
+        }
+      },
+    })
+
+    const report = await runHealthCheck(flakyDb, { concurrency: 1, check: async () => true })
+
+    expect(report).toEqual({ checked: 3, ok: 3, failed: 0, dbErrors: 1 })
+    const rows = await ctx.db.select().from(stations)
+    const updated = rows.filter((r) => r.healthLastCheckedAt !== null).map((r) => r.slug).sort()
+    expect(updated).toEqual(['a', 'c'])
   })
 })
