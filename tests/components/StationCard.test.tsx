@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { StationCard } from '@/components/StationCard'
 import { Pagination } from '@/components/Pagination'
-import { t } from '@/i18n'
+import { t, tn } from '@/i18n'
 import type { StationCardData } from '@/catalog/queries'
 
 const station: StationCardData = {
@@ -109,6 +109,6 @@ describe('Pagination', () => {
 
 describe('t', () => {
   it('replaces variables', () => {
-    expect(t('station.plays', { count: 5 })).toBe('5 reproducciones')
+    expect(tn('station.plays', 5)).toBe('5 reproducciones')
   })
 })

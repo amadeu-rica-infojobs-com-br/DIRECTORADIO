@@ -1,3 +1,5 @@
+import { t } from '@/i18n'
+
 export const GENRES = [
   'pop',
   'electronica',
@@ -12,16 +14,8 @@ export const GENRES = [
 
 export type Genre = (typeof GENRES)[number]
 
-export const GENRE_LABELS: Record<Genre, string> = {
-  pop: 'Pop',
-  electronica: 'Electrónica',
-  rock: 'Rock',
-  jazz: 'Jazz',
-  clasica: 'Clásica',
-  variada: 'Variada',
-  noticias: 'Noticias',
-  deportes: 'Deportes',
-  generalista: 'Generalista',
+export function genreLabel(g: Genre): string {
+  return t(`genre.${g}` as const)
 }
 
 export function resolveGenre(tags: string[], mapping: Map<string, Genre>): Genre {

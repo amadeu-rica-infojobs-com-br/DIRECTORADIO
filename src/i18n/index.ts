@@ -10,4 +10,14 @@ export function t(key: MessageKey, vars?: Record<string, string | number>): stri
   )
 }
 
+export function tn(
+  base: 'station.plays' | 'station.ratings',
+  count: number,
+  vars?: Record<string, string | number>,
+): string {
+  const form = count === 1 ? 'one' : 'other'
+  const key = `${base}.${form}` as MessageKey
+  return t(key, { ...vars, count: new Intl.NumberFormat('es-ES').format(count) })
+}
+
 export { messages }

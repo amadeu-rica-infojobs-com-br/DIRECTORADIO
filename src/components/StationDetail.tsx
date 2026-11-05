@@ -3,9 +3,9 @@ import type { StationDetailData } from '@/catalog/queries'
 import { AudioPlayer } from '@/components/AudioPlayer'
 import { Stars } from '@/components/Stars'
 import { StationLogo } from '@/components/StationLogo'
-import { t } from '@/i18n'
+import { t, tn } from '@/i18n'
 import { countryName, flagEmoji } from '@/lib/country'
-import { GENRE_LABELS } from '@/lib/genres'
+import { genreLabel } from '@/lib/genres'
 
 function isHttpUrl(url: string | null): url is string {
   if (!url) return false
@@ -36,7 +36,7 @@ export function StationDetail({ station }: { station: StationDetailData }) {
                 {flag} {country} ·{' '}
               </>
             )}
-            {GENRE_LABELS[station.genre]}
+            {genreLabel(station.genre)}
           </p>
           {station.languages.length > 0 && (
             <p className="text-sm text-neutral-500">
@@ -60,13 +60,12 @@ export function StationDetail({ station }: { station: StationDetailData }) {
         {station.ratingCount > 0 && (
           <span className="flex items-center gap-2">
             <Stars avg={station.ratingAvg} />
-            {t('station.ratings', {
+            {tn('station.ratings', station.ratingCount, {
               avg: station.ratingAvg.toFixed(1).replace('.', ','),
-              count: station.ratingCount,
             })}
           </span>
         )}
-        <span>{t('station.plays', { count: station.playCount.toLocaleString('es-ES') })}</span>
+        <span>{tn('station.plays', station.playCount)}</span>
       </div>
 
       {station.isHealthHidden && (

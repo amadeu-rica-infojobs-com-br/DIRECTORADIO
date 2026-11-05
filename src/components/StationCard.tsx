@@ -3,7 +3,7 @@ import type { StationCardData } from '@/catalog/queries'
 import { Stars } from '@/components/Stars'
 import { StationLogo } from '@/components/StationLogo'
 import { countryName, flagEmoji } from '@/lib/country'
-import { GENRE_LABELS } from '@/lib/genres'
+import { genreLabel } from '@/lib/genres'
 
 export function StationCard({ station }: { station: StationCardData }) {
   const country = countryName(station.countryCode)
@@ -20,7 +20,7 @@ export function StationCard({ station }: { station: StationCardData }) {
           {flag} {country}
         </span>
       )}
-      <span className="text-xs text-neutral-500">{GENRE_LABELS[station.genre]}</span>
+      <span className="text-xs text-neutral-500">{genreLabel(station.genre)}</span>
       {station.ratingCount > 0 && <Stars avg={station.ratingAvg} />}
     </Link>
   )
