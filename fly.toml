@@ -1,5 +1,5 @@
 app = "directoradio-audio"
-primary_region = "mad"
+primary_region = "fra"
 
 [env]
   AUDIO_PROXY_PORT = "4100"
