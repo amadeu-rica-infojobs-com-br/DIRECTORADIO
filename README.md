@@ -51,7 +51,7 @@ Los secretos viven en `.env.production.local` (ignorado por git) y nunca se escr
 
 1. **CLIs:** instala `flyctl` (`winget install Fly-io.flyctl`) y la CLI de Vercel (`npm i -g vercel`); inicia sesión con `fly auth login` y `vercel login`.
 2. **Neon:** crea el proyecto `directoradio` (AWS Europe Central 1 – Frankfurt, Postgres 17). Guarda en `.env.production.local` la cadena *pooled* como `DATABASE_URL` y la directa como `DATABASE_URL_DIRECT`. Genera `PLAYS_IP_SALT` con `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` y añádelo al mismo fichero.
-3. **Fly (app y secretos):** `fly apps create directoradio-audio`. Sube `DATABASE_URL`, `DATABASE_URL_DIRECT` y `RADIO_BROWSER_BASE_URL` sin mostrarlos; `fly secrets import` lee de la entrada estándar, p. ej. en bash `grep -E '^(DATABASE_URL|DATABASE_URL_DIRECT|RADIO_BROWSER_BASE_URL)=' .env.production.local | fly secrets import`. Despliega con `fly deploy` y comprueba que `https://directoradio-audio.fly.dev/healthz` responde 200.
+3. **Fly (app y secretos):** `fly apps create directoradio-audio`. Sube `DATABASE_URL` y `DATABASE_URL_DIRECT` sin mostrarlos; `fly secrets import` lee de la entrada estándar, p. ej. en bash `grep -E '^(DATABASE_URL|DATABASE_URL_DIRECT)=' .env.production.local | fly secrets import`. Despliega con `fly deploy` y comprueba que `https://directoradio-audio.fly.dev/healthz` responde 200.
 4. **Migraciones y primera carga, desde Fly** (la red corporativa puede bloquear el puerto 5432):
    ```bash
    fly machine run . --command "node dist/migrate.mjs" --rm
