@@ -6,7 +6,7 @@ import postgres from 'postgres'
 import { drizzle } from 'drizzle-orm/postgres-js'
 import * as schema from '@/db/schema'
 import { plays, stations } from '@/db/schema'
-import { recordPlay } from '@/catalog/plays'
+import { hashIp, PLAYS_PER_IP_DAY, PLAYS_PER_IP_HOUR, pruneOldPlays, recordPlay } from '@/catalog/plays'
 import { createTestDb } from '../helpers/db'
 import { assertTestDbUrl } from '../helpers/assert-test-db'
 
@@ -74,6 +74,55 @@ describe('recordPlay', () => {
 
   it('returns not-found for an unknown station', async () => {
     expect(await recordPlay(ctx.db, randomUUID(), randomUUID())).toBe('not-found')
+  })
+
+  it('rate-limits counted plays per ip', async () => {
+    const st = await addStation()
+    const ip = hashIp('203.0.113.5', 'salt')
+    expect(PLAYS_PER_IP_HOUR).toBe(30)
+    for (let i = 0; i < PLAYS_PER_IP_HOUR; i++) {
+      expect(await recordPlay(ctx.db, st.id, randomUUID(), ip)).toBe('counted')
+    }
+    expect(await recordPlay(ctx.db, st.id, randomUUID(), ip)).toBe('rate-limited')
+    expect(await playCount(st.id)).toBe(PLAYS_PER_IP_HOUR)
+  })
+
+  it('daily cap', async () => {
+    const st = await addStation()
+    const ip = hashIp('203.0.113.6', 'salt')
+    expect(PLAYS_PER_IP_DAY).toBe(200)
+    const rows = Array.from({ length: PLAYS_PER_IP_DAY }, (_, i) => ({
+      stationId: st.id,
+      sessionId: randomUUID(),
+      ipHash: ip,
+      createdAt: new Date(Date.now() - (2 + (i % 20)) * 3600_000),
+    }))
+    await ctx.db.insert(plays).values(rows)
+    expect(await recordPlay(ctx.db, st.id, randomUUID(), ip)).toBe('rate-limited')
+  })
+
+  it('other ips unaffected', async () => {
+    const st = await addStation()
+    const ip = hashIp('203.0.113.7', 'salt')
+    for (let i = 0; i < PLAYS_PER_IP_HOUR; i++) await recordPlay(ctx.db, st.id, randomUUID(), ip)
+    expect(await recordPlay(ctx.db, st.id, randomUUID(), hashIp('198.51.100.1', 'salt'))).toBe('counted')
+    expect(await recordPlay(ctx.db, st.id, randomUUID(), null)).toBe('counted')
+  })
+
+  it('hashIp is sha256 hex of salt + ip', () => {
+    expect(hashIp('1.2.3.4', 's')).toMatch(/^[0-9a-f]{64}$/)
+    expect(hashIp('1.2.3.4', 's')).not.toBe(hashIp('1.2.3.4', 't'))
+  })
+
+  it('prunes plays older than 35 days', async () => {
+    const st = await addStation()
+    const day = 24 * 3600_000
+    await ctx.db.insert(plays).values([
+      { stationId: st.id, sessionId: randomUUID(), createdAt: new Date(Date.now() - 36 * day) },
+      { stationId: st.id, sessionId: randomUUID(), createdAt: new Date(Date.now() - 10 * day) },
+    ])
+    expect(await pruneOldPlays(ctx.db)).toBe(1)
+    expect(await ctx.db.select().from(plays)).toHaveLength(1)
   })
 
   it('handles concurrent plays without deadlock', async () => {
