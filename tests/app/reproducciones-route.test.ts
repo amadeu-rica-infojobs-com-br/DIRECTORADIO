@@ -69,6 +69,56 @@ describe('POST /api/reproducciones', () => {
     expect((await handlePlay(ctx.db, req(body))).status).toBe(404)
   })
 
+  it('returns 429 with Retry-After after 30 plays from the same ip', async () => {
+    const st = await addStation()
+    const call = () =>
+      handlePlay(
+        ctx.db,
+        new Request('http://localhost/api/reproducciones', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', 'x-forwarded-for': '203.0.113.9, 10.0.0.1' },
+          body: JSON.stringify({ stationId: st.id, sessionId: randomUUID() }),
+        }),
+        { salt: 'salt' },
+      )
+    for (let i = 0; i < 30; i++) expect((await call()).status).toBe(204)
+    const res = await call()
+    expect(res.status).toBe(429)
+    expect(res.headers.get('retry-after')).toBe('3600')
+  })
+
+  it('shares the hourly limit between addresses in the same ipv6 /64', async () => {
+    const st = await addStation()
+    const call = (ip: string) =>
+      handlePlay(
+        ctx.db,
+        new Request('http://localhost/api/reproducciones', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', 'x-forwarded-for': ip },
+          body: JSON.stringify({ stationId: st.id, sessionId: randomUUID() }),
+        }),
+        { salt: 'salt' },
+      )
+    for (let i = 0; i < 30; i++) expect((await call('2001:db8:1:2::5')).status).toBe(204)
+    expect((await call('2001:db8:1:2:ffff::1')).status).toBe(429)
+    expect((await call('2001:db8:1:3::1')).status).toBe(204)
+  })
+
+  it('does not limit when no salt is given', async () => {
+    const st = await addStation()
+    for (let i = 0; i < 31; i++) {
+      const res = await handlePlay(
+        ctx.db,
+        new Request('http://localhost/api/reproducciones', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', 'x-forwarded-for': '203.0.113.9' },
+          body: JSON.stringify({ stationId: st.id, sessionId: randomUUID() }),
+        }),
+      )
+      expect(res.status).toBe(204)
+    }
+  })
+
   it('exports a POST route handler that validates input before touching the db', async () => {
     vi.stubEnv('DATABASE_URL', process.env.DATABASE_URL_TEST)
     expect(POST).toBeTypeOf('function')

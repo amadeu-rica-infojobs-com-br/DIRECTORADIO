@@ -1,0 +1,33 @@
+name: Deploy audio proxy (Fly.io)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'drizzle/**'
+      - 'scripts/build-services.mjs'
+      - 'Dockerfile'
+      - '.dockerignore'
+      - 'fly.toml'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/fly-deploy.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fly-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: superfly/flyctl-actions/setup-flyctl@1.5
+      - run: flyctl deploy --remote-only --ha=false -a directoradio-audio
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}

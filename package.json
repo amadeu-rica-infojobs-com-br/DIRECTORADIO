@@ -2,9 +2,13 @@
   "name": "directoradio",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=22.19"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:services": "node scripts/build-services.mjs",
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
@@ -13,6 +17,7 @@
     "db:migrate": "tsx src/db/migrate.ts",
     "job:sync": "tsx src/jobs/sync.ts",
     "job:health": "tsx src/jobs/health.ts",
+    "job:daily": "tsx src/jobs/daily.ts",
     "proxy": "tsx src/proxy/server.ts"
   },
   "dependencies": {
@@ -35,6 +40,7 @@
     "@types/react-dom": "^19",
     "@vitejs/plugin-react": "^6.2.1",
     "drizzle-kit": "^0.31.11",
+    "esbuild": "^0.28.2",
     "eslint": "^9",
     "eslint-config-next": "16.4.5",
     "jsdom": "^29.1.1",

@@ -93,11 +93,13 @@ export const plays = pgTable(
       .notNull()
       .references(() => stations.id, { onDelete: 'cascade' }),
     sessionId: uuid('session_id').notNull(),
+    ipHash: text('ip_hash'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
     uniqueIndex('plays_station_session_idx').on(t.stationId, t.sessionId),
     index('plays_created_at_idx').on(t.createdAt),
+    index('plays_ip_hash_created_at_idx').on(t.ipHash, t.createdAt),
   ],
 )
 

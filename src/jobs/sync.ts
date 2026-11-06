@@ -7,7 +7,7 @@ import { syncCatalog } from '@/catalog/sync'
 config({ path: '.env.local', quiet: true })
 
 async function main() {
-  const db = getDb()
+  const db = getDb(process.env.DATABASE_URL_DIRECT ?? process.env.DATABASE_URL, { statementTimeoutMs: 0 })
   await seedTagGenres(db)
   const stationsFromRb = await fetchAllStations()
   const report = await syncCatalog(db, stationsFromRb)

@@ -1,8 +1,9 @@
 // @vitest-environment node
 import http from 'node:http'
 import type { AddressInfo } from 'node:net'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createProxyHandler, type ProxyDeps } from '@/proxy/handler'
+import { clientKey } from '@/proxy/client-key'
 import { ConnectionLimiter } from '@/proxy/limits'
 
 const WEB_ORIGIN = 'http://localhost:3000'
@@ -104,6 +105,7 @@ async function startProxy(overrides: Partial<ProxyDeps> = {}) {
     [ID_REDIRECT_LOOP]: `${base}/redirect-loop`,
   }
   const limiter = overrides.limiter ?? new ConnectionLimiter(3, 200)
+  const log = vi.fn<ProxyDeps['log']>()
   const deps: ProxyDeps = {
     findStreamUrl: async (id) => urls[id] ?? null,
     fetchImpl: fetch,
@@ -111,10 +113,13 @@ async function startProxy(overrides: Partial<ProxyDeps> = {}) {
     limiter,
     webOrigin: WEB_ORIGIN,
     headersTimeoutMs: 10000,
+    lookupTimeoutMs: 3000,
+    clientKey: (req) => req.socket.remoteAddress ?? 'unknown',
+    log,
     ...overrides,
   }
   const port = await listen(http.createServer(createProxyHandler(deps)))
-  return { proxy: `http://127.0.0.1:${port}`, limiter }
+  return { proxy: `http://127.0.0.1:${port}`, limiter, log }
 }
 
 afterEach(async () => {
@@ -273,9 +278,123 @@ describe('audio proxy handler', () => {
   })
 
   it('answers /healthz', async () => {
-    const { proxy } = await startProxy()
+    const { proxy, log } = await startProxy()
     const res = await fetch(`${proxy}/healthz`)
     expect(res.status).toBe(200)
     expect(await res.text()).toBe('ok')
+    expect(log).not.toHaveBeenCalled()
+  })
+
+  it('uses trusted client ip header', async () => {
+    const { proxy } = await startProxy({
+      limiter: new ConnectionLimiter(1, 200),
+      clientKey: (req) => clientKey(req, 'fly-client-ip'),
+    })
+    const acs = [1, 2, 3, 4].map(() => new AbortController())
+    const responses = await Promise.all(
+      acs.map((ac, i) =>
+        fetch(`${proxy}/stream/${ID_AUDIO}`, {
+          headers: { 'fly-client-ip': `198.51.100.${i + 1}` },
+          signal: ac.signal,
+        }),
+      ),
+    )
+    expect(responses.map((r) => r.status)).toEqual([200, 200, 200, 200])
+    acs.forEach((ac) => ac.abort())
+  })
+
+  it('rejects foreign referer', async () => {
+    const { proxy, log } = await startProxy()
+    const bad = await fetch(`${proxy}/stream/${ID_AUDIO}`, {
+      headers: { Referer: 'https://evil.example/page' },
+    })
+    expect(bad.status).toBe(403)
+    expect(log).toHaveBeenCalledWith({
+      status: 403,
+      stationId: ID_AUDIO,
+      reason: 'foreign_referer',
+    })
+
+    const garbage = await fetch(`${proxy}/stream/${ID_AUDIO}`, { headers: { Referer: 'not a url' } })
+    expect(garbage.status).toBe(403)
+
+    const allowed: Record<string, string>[] = [{ Referer: `${WEB_ORIGIN}/emisora/x` }, {}]
+    for (const headers of allowed) {
+      const ac = new AbortController()
+      const ok = await fetch(`${proxy}/stream/${ID_AUDIO}`, { headers, signal: ac.signal })
+      expect(ok.status).toBe(200)
+      ac.abort()
+    }
+  })
+
+  it('times out station lookup', async () => {
+    const { proxy, limiter, log } = await startProxy({
+      lookupTimeoutMs: 100,
+      findStreamUrl: () => new Promise(() => {}),
+    })
+    const res = await fetch(`${proxy}/stream/${ID_AUDIO}`)
+    expect(res.status).toBe(503)
+    expect(res.headers.get('retry-after')).toBe('30')
+    expect(log).toHaveBeenCalledWith({ status: 503, stationId: ID_AUDIO, reason: 'lookup_timeout' })
+    expect(limiter.count()).toBe(0)
+  })
+
+  it('returns 503 when the station lookup throws', async () => {
+    const { proxy, limiter, log } = await startProxy({
+      findStreamUrl: async () => {
+        throw new Error('db down')
+      },
+    })
+    const res = await fetch(`${proxy}/stream/${ID_AUDIO}`)
+    expect(res.status).toBe(503)
+    expect(res.headers.get('retry-after')).toBe('30')
+    expect(log).toHaveBeenCalledWith({ status: 503, stationId: ID_AUDIO, reason: 'lookup_error' })
+    expect(limiter.count()).toBe(0)
+  })
+
+  it('logs non-200 responses without url or ip', async () => {
+    const { proxy, log } = await startProxy()
+    expect((await fetch(`${proxy}/stream/${ID_UNKNOWN}`)).status).toBe(404)
+    expect(log).toHaveBeenCalledWith({ status: 404, stationId: ID_UNKNOWN, reason: 'not_found' })
+    expect((await fetch(`${proxy}/other`)).status).toBe(404)
+    expect(log).toHaveBeenLastCalledWith({ status: 404, stationId: null, reason: 'not_found' })
+    expect((await fetch(`${proxy}/stream/${ID_HTML}`)).status).toBe(415)
+    expect(log).toHaveBeenLastCalledWith({
+      status: 415,
+      stationId: ID_HTML,
+      reason: 'unsupported_type',
+    })
+    expect((await fetch(`${proxy}/stream/${ID_500}`)).status).toBe(502)
+    expect(log).toHaveBeenLastCalledWith({
+      status: 502,
+      stationId: ID_500,
+      reason: 'upstream_status',
+    })
+    expect((await fetch(`${proxy}/stream/${ID_REDIRECT_LOOP}`)).status).toBe(502)
+    expect(log).toHaveBeenLastCalledWith({
+      status: 502,
+      stationId: ID_REDIRECT_LOOP,
+      reason: 'too_many_redirects',
+    })
+    expect((await fetch(`${proxy}/stream/${ID_AUDIO}`, { method: 'POST' })).status).toBe(405)
+    expect(log).toHaveBeenLastCalledWith({ status: 405, stationId: ID_AUDIO, reason: 'method' })
+    expect(JSON.stringify(log.mock.calls)).not.toMatch(/127\.0\.0\.1/)
+  })
+
+  it('logs rate limits with retry-after', async () => {
+    const { proxy, log } = await startProxy({ limiter: new ConnectionLimiter(1, 200) })
+    const ac = new AbortController()
+    await fetch(`${proxy}/stream/${ID_AUDIO}`, { signal: ac.signal })
+    const res = await fetch(`${proxy}/stream/${ID_AUDIO}`)
+    expect(res.status).toBe(429)
+    expect(res.headers.get('retry-after')).toBe('30')
+    expect(log).toHaveBeenCalledWith({ status: 429, stationId: ID_AUDIO, reason: 'per_ip_limit' })
+    ac.abort()
+  })
+
+  it('does not log 200 or 204', async () => {
+    const { proxy, log } = await startProxy()
+    expect((await fetch(`${proxy}/stream/${ID_AUDIO}`, { method: 'OPTIONS' })).status).toBe(204)
+    expect(log).not.toHaveBeenCalled()
   })
 })

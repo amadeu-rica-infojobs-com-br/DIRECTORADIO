@@ -1,0 +1,29 @@
+app = "directoradio-audio"
+primary_region = "mad"
+
+[env]
+  AUDIO_PROXY_PORT = "4100"
+  WEB_ORIGIN = "https://directoradio.com"
+  RADIO_BROWSER_BASE_URL = "https://de1.api.radio-browser.info"
+  TRUSTED_CLIENT_IP_HEADER = "fly-client-ip"
+
+[http_service]
+  internal_port = 4100
+  force_https = true
+  auto_stop_machines = "off"
+  min_machines_running = 1
+
+  [http_service.concurrency]
+    type = "connections"
+    soft_limit = 180
+    hard_limit = 200
+
+  [[http_service.checks]]
+    grace_period = "10s"
+    interval = "15s"
+    timeout = "5s"
+    method = "GET"
+    path = "/healthz"
+
+[[vm]]
+  memory = "512mb"
