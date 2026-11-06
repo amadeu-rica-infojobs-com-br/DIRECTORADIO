@@ -181,7 +181,7 @@ describe('runHealthCheck', () => {
       check: async (url) => url.endsWith('/recovering'),
     })
 
-    expect(report).toEqual({ checked: 2, ok: 1, failed: 1, dbErrors: 0 })
+    expect(report).toEqual({ checked: 2, ok: 1, failed: 1, dbErrors: 0, aborted: false })
     const get = async (slug: string) =>
       (await ctx.db.select().from(stations).where(eq(stations.slug, slug)))[0]
 
@@ -215,7 +215,7 @@ describe('runHealthCheck', () => {
         return true
       },
     })
-    expect(report).toEqual({ checked: 5, ok: 4, failed: 1, dbErrors: 0 })
+    expect(report).toEqual({ checked: 5, ok: 4, failed: 1, dbErrors: 0, aborted: false })
     expect(peak).toBeLessThanOrEqual(2)
   })
 
@@ -234,9 +234,44 @@ describe('runHealthCheck', () => {
 
     const report = await runHealthCheck(flakyDb, { concurrency: 1, check: async () => true })
 
-    expect(report).toEqual({ checked: 3, ok: 3, failed: 0, dbErrors: 1 })
+    expect(report).toEqual({ checked: 3, ok: 3, failed: 0, dbErrors: 1, aborted: false })
     const rows = await ctx.db.select().from(stations)
     const updated = rows.filter((r) => r.healthLastCheckedAt !== null).map((r) => r.slug).sort()
     expect(updated).toEqual(['a', 'c'])
+  })
+
+  it('aborts when failure rate is too high', async () => {
+    await ctx.db.insert(stations).values(['a', 'b', 'c', 'd'].map((s) => station(s)))
+
+    const report = await runHealthCheck(ctx.db, {
+      concurrency: 2,
+      check: async (url) => url.endsWith('/a'),
+    })
+
+    expect(report).toEqual({ checked: 4, ok: 1, failed: 3, dbErrors: 0, aborted: true })
+    const rows = await ctx.db.select().from(stations)
+    for (const r of rows) {
+      expect(r.healthConsecutiveFailures ?? 0).toBe(0)
+      expect(r.healthLastCheckedAt).toBeNull()
+    }
+  })
+
+  it('applies when failure rate is acceptable', async () => {
+    await ctx.db.insert(stations).values(['a', 'b', 'c', 'd'].map((s) => station(s)))
+
+    const report = await runHealthCheck(ctx.db, {
+      concurrency: 2,
+      check: async (url) => !url.endsWith('/a'),
+    })
+
+    expect(report).toEqual({ checked: 4, ok: 3, failed: 1, dbErrors: 0, aborted: false })
+    const a = (await ctx.db.select().from(stations).where(eq(stations.slug, 'a')))[0]
+    expect(a.healthConsecutiveFailures).toBe(1)
+    expect(a.healthLastCheckedAt).toBeInstanceOf(Date)
+  })
+
+  it('does not abort when there is nothing to check', async () => {
+    const report = await runHealthCheck(ctx.db, { check: async () => false })
+    expect(report).toEqual({ checked: 0, ok: 0, failed: 0, dbErrors: 0, aborted: false })
   })
 })

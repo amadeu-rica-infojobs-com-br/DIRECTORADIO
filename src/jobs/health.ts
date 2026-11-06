@@ -7,6 +7,7 @@ config({ path: '.env.local', quiet: true })
 async function main() {
   const db = getDb()
   const report = await runHealthCheck(db)
+  if (report.aborted) console.log(JSON.stringify({ event: 'health_aborted_high_failure_rate', ...report }))
   console.log(JSON.stringify(report, null, 2))
 }
 

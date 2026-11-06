@@ -16,6 +16,7 @@
     "db:migrate": "tsx src/db/migrate.ts",
     "job:sync": "tsx src/jobs/sync.ts",
     "job:health": "tsx src/jobs/health.ts",
+    "job:daily": "tsx src/jobs/daily.ts",
     "proxy": "tsx src/proxy/server.ts"
   },
   "dependencies": {
