@@ -56,6 +56,12 @@ Los secretos viven en `.env.production.local` (ignorado por git) y nunca se escr
    Get-Content .env.production.local | Select-String '^(DATABASE_URL|DATABASE_URL_DIRECT)=' | ForEach-Object { $_.Line } | fly secrets import -a directoradio-audio
    ```
    Despliega con `fly deploy --ha=false` y comprueba que `https://directoradio-audio.fly.dev/healthz` responde 200.
+
+   **Despliegue continuo:** el workflow `.github/workflows/fly-deploy.yml` despliega el proxy en Fly en cada push a `main` que toque el código de los servicios (también se lanza a mano desde *Actions*). Necesita el secreto de repositorio `FLY_API_TOKEN`, que se crea sin mostrarlo:
+   ```powershell
+   cmd /c "flyctl tokens create deploy -a directoradio-audio -x 8760h | gh secret set FLY_API_TOKEN"
+   ```
+   Útil también cuando la red local impide construir o subir imágenes a Fly.
 4. **Límite de consulta y primera carga, desde Fly** (la red corporativa puede bloquear el puerto 5432):
    - Fija una vez el límite por rol, sobre la **conexión directa** (la *pooled* de Neon rechaza `statement_timeout` como parámetro de arranque). Afecta a la web y al proxy, que entran por el *pooler*; las tareas lo anulan a 0 en su conexión directa:
      ```sql
