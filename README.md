@@ -45,7 +45,7 @@ Los tests usan exclusivamente `DATABASE_URL_TEST` y se niegan a ejecutarse si la
 
 ## Producción
 
-Arquitectura: web en Vercel (`fra1`), proxy de audio y tareas en Fly (`mad`), Postgres en Neon (Frankfurt) y DNS en Cloudflare. Los servicios de Fly se empaquetan con `npm run build:services` (esbuild → `dist/*.mjs`) y se despliegan con el `Dockerfile` y `fly.toml`.
+Arquitectura: web en Vercel (`fra1`), proxy de audio y tareas en Fly (`fra`), Postgres en Neon (Frankfurt) y DNS en Cloudflare. Los servicios de Fly se empaquetan con `npm run build:services` (esbuild → `dist/*.mjs`) y se despliegan con el `Dockerfile` y `fly.toml`.
 
 Los secretos viven en `.env.production.local` (ignorado por git) y nunca se escriben en el repositorio ni en la configuración.
 
@@ -69,17 +69,17 @@ Los secretos viven en `.env.production.local` (ignorado por git) y nunca se escr
      ```
    - Averigua la imagen desplegada con `fly releases --image -a directoradio-audio` (primera fila) o `fly image show -a directoradio-audio`, y ejecútala como máquina temporal:
      ```bash
-     fly machine run <imagen_desplegada> node dist/migrate.mjs --rm --restart no --region mad --vm-memory 1024 -a directoradio-audio
-     fly machine run <imagen_desplegada> node dist/sync.mjs    --rm --restart no --region mad --vm-memory 1024 -a directoradio-audio   # se espera inserted > 40000
+     fly machine run <imagen_desplegada> node dist/migrate.mjs --rm --restart no --region fra --vm-memory 1024 -a directoradio-audio
+     fly machine run <imagen_desplegada> node dist/sync.mjs    --rm --restart no --region fra --vm-memory 1024 -a directoradio-audio   # se espera inserted > 40000
      ```
 5. **Primera comprobación de salud:**
    ```bash
-   fly machine run <imagen_desplegada> node dist/health.mjs --rm --restart no --region mad --vm-memory 1024 -a directoradio-audio
+   fly machine run <imagen_desplegada> node dist/health.mjs --rm --restart no --region fra --vm-memory 1024 -a directoradio-audio
    ```
    Si `failed / checked > 0.3`, para y analiza antes de seguir.
 6. **Tarea diaria:**
    ```bash
-   fly machine run <imagen_desplegada> node dist/daily.mjs --schedule daily --restart no --region mad --vm-memory 1024 -a directoradio-audio
+   fly machine run <imagen_desplegada> node dist/daily.mjs --schedule daily --restart no --region fra --vm-memory 1024 -a directoradio-audio
    ```
    La máquina programada queda anclada a esa imagen: tras cada `fly deploy` posterior, actualízala con `fly machine update <id_maquina_diaria> --image <nueva_imagen> -a directoradio-audio`.
 7. **Vercel:** importa el repositorio de GitHub (o `vercel link`) y carga las variables de producción desde el fichero: `DATABASE_URL` (cadena *pooled*), `DB_POOL_MAX=1`, `NEXT_PUBLIC_AUDIO_PROXY_URL=https://audio.directoradio.com` y `PLAYS_IP_SALT`. No pongas `DB_STATEMENT_TIMEOUT_MS`: el límite lo da el rol de Neon. Despliega a producción.

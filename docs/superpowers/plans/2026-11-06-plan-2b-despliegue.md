@@ -6,7 +6,7 @@
 
 **Architecture:**
 - **Web:** Next.js en Vercel. Las funciones corren en `fra1`. La web usa la cadena de conexión *pooled* de Neon, con `prepare: false` y una conexión por instancia.
-- **Proxy de audio y tareas:** una única app de Fly.io (`directoradio-audio`, región `mad`) con una imagen Docker. Los procesos son el proxy de audio (siempre encendido) y una máquina programada diaria que ejecuta sincronización, limpieza de reproducciones y comprobación de salud.
+- **Proxy de audio y tareas:** una única app de Fly.io (`directoradio-audio`, región `fra`) con una imagen Docker. Los procesos son el proxy de audio (siempre encendido) y una máquina programada diaria que ejecuta sincronización, limpieza de reproducciones y comprobación de salud.
 - **Código ejecutable en Fly:** el TypeScript del proxy y de las tareas se empaqueta con esbuild en `dist/*.mjs`, así que la imagen no necesita `tsx` ni dependencias de desarrollo.
 - **DNS:** en Cloudflare, en modo «solo DNS» (nube gris) para la web y el proxy.
 
@@ -24,7 +24,7 @@
   - Web: `https://directoradio.com`. `www.directoradio.com` redirige con un 308 al dominio sin `www`.
   - Proxy: `https://audio.directoradio.com`.
   - DNS en Cloudflare, siempre en modo «DNS only». Nunca en modo «Proxied».
-- **Regiones:** Neon `aws-eu-central-1` (Fráncfort), Vercel `fra1` y Fly.io `mad`.
+- **Regiones:** Neon `aws-eu-central-1` (Fráncfort), Vercel `fra1` y Fly.io `fra`.
 - **Node:** `"engines": { "node": ">=22.19" }` en `package.json`. La imagen Docker usa `node:24-slim`.
 - **Secretos:** nunca en el repositorio ni en el chat.
   - El responsable los escribe en `.env.production.local`, que git ignora.
@@ -212,7 +212,7 @@
     2. `build`: `npm run build:services`.
     3. `runtime` (`node:24-slim`): `npm ci --omit=dev`, copia `dist/` y `drizzle/`, `USER node`, `EXPOSE 4100` y `CMD ["node","dist/proxy.mjs"]`.
   - `fly.toml`:
-    - `app = "directoradio-audio"` y `primary_region = "mad"`.
+    - `app = "directoradio-audio"` y `primary_region = "fra"`.
     - `[env]`: `AUDIO_PROXY_PORT=4100`, `WEB_ORIGIN=https://directoradio.com` y `TRUSTED_CLIENT_IP_HEADER=fly-client-ip`.
     - `[http_service]`: `internal_port=4100`, `force_https=true`, `auto_stop_machines="off"`, `min_machines_running=1`, `concurrency` de tipo `connections` con `soft_limit=180` y `hard_limit=200`.
     - Healthcheck HTTP en `/healthz` cada 15 s.
@@ -257,13 +257,13 @@ Estos pasos tocan sistemas externos y cuentas del responsable. El controlador lo
     ```
     Afecta a la web (Vercel) y al proxy, que entran por el *pooler*. Las tareas lo anulan a 0 en su conexión directa, porque sincronizar y comprobar salud lleva minutos.
   - Obtener la imagen desplegada: `fly releases --image -a directoradio-audio` (primera fila) o `fly image show -a directoradio-audio`.
-  - `fly machine run <imagen_desplegada> node dist/migrate.mjs --rm --restart no --region mad --vm-memory 1024 -a directoradio-audio`.
-  - `fly machine run <imagen_desplegada> node dist/sync.mjs --rm --restart no --region mad --vm-memory 1024 -a directoradio-audio`. Se espera `inserted` > 40000.
+  - `fly machine run <imagen_desplegada> node dist/migrate.mjs --rm --restart no --region fra --vm-memory 1024 -a directoradio-audio`.
+  - `fly machine run <imagen_desplegada> node dist/sync.mjs --rm --restart no --region fra --vm-memory 1024 -a directoradio-audio`. Se espera `inserted` > 40000.
 - [ ] **P5 · Primera comprobación de salud manual:**
-  - `fly machine run <imagen_desplegada> node dist/health.mjs --rm --restart no --region mad --vm-memory 1024 -a directoradio-audio`.
+  - `fly machine run <imagen_desplegada> node dist/health.mjs --rm --restart no --region fra --vm-memory 1024 -a directoradio-audio`.
   - Si `failed / checked > 0.3`, parar y analizar con el responsable antes de seguir.
 - [ ] **P6 · Tarea diaria:**
-  - `fly machine run <imagen_desplegada> node dist/daily.mjs --schedule daily --restart no --region mad --vm-memory 1024 -a directoradio-audio`.
+  - `fly machine run <imagen_desplegada> node dist/daily.mjs --schedule daily --restart no --region fra --vm-memory 1024 -a directoradio-audio`.
   - La máquina programada queda anclada a esa imagen: tras cada `fly deploy` posterior hay que actualizarla con `fly machine update <id_maquina_diaria> --image <nueva_imagen> -a directoradio-audio`.
 - [ ] **P7 · Vercel:**
   - Importar el repositorio de GitHub (interfaz web o `vercel link`).
