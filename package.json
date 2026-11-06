@@ -8,6 +8,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:services": "node scripts/build-services.mjs",
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
@@ -39,6 +40,7 @@
     "@types/react-dom": "^19",
     "@vitejs/plugin-react": "^6.2.1",
     "drizzle-kit": "^0.31.11",
+    "esbuild": "^0.28.2",
     "eslint": "^9",
     "eslint-config-next": "16.4.5",
     "jsdom": "^29.1.1",
