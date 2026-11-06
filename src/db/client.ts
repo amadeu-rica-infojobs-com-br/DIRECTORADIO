@@ -6,10 +6,10 @@ export type Db = PostgresJsDatabase<typeof schema>
 
 const cache = new Map<string, Db>()
 
-export function dbOptions(url: string, env: NodeJS.ProcessEnv = process.env): postgres.Options<{}> {
+export function dbOptions(url: string, env: NodeJS.ProcessEnv = process.env): postgres.Options<Record<string, postgres.PostgresType>> {
   const host = new URL(url).hostname
   const isLocal = host === 'localhost' || host === '127.0.0.1'
-  const opts: postgres.Options<{}> = {}
+  const opts: postgres.Options<Record<string, postgres.PostgresType>> = {}
   // Pooled endpoints (e.g. Neon -pooler) do not support prepared statements.
   if (host.includes('-pooler') || env.DB_POOLED === 'true') opts.prepare = false
   if (env.DB_POOL_MAX) opts.max = Number(env.DB_POOL_MAX)
