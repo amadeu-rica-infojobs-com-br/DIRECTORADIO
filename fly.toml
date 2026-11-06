@@ -6,7 +6,6 @@ primary_region = "mad"
   WEB_ORIGIN = "https://directoradio.com"
   RADIO_BROWSER_BASE_URL = "https://de1.api.radio-browser.info"
   TRUSTED_CLIENT_IP_HEADER = "fly-client-ip"
-  DB_STATEMENT_TIMEOUT_MS = "5000"
 
 [http_service]
   internal_port = 4100

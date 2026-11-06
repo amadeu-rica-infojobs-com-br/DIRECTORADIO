@@ -34,8 +34,8 @@
   | Variable | Web (Vercel) | Fly | Valor |
   |---|---|---|---|
   | `DATABASE_URL` | sí | sí | Cadena *pooled* de Neon (host `-pooler`). En Vercel lleva `DB_POOL_MAX=1`. |
-  | `DATABASE_URL_DIRECT` | — | sí | Cadena directa de Neon, solo para las migraciones. |
-  | `DB_STATEMENT_TIMEOUT_MS` | 5000 | 5000 | Límite de tiempo por consulta. |
+  | `DATABASE_URL_DIRECT` | — | sí | Cadena directa de Neon, para las migraciones y las tareas. |
+  | *(límite de consulta)* | — | — | Timeout por rol en Neon (5 s) para web y proxy; las tareas usan la conexión directa sin límite. |
   | `NEXT_PUBLIC_AUDIO_PROXY_URL` | `https://audio.directoradio.com` | — | Se fija en tiempo de *build*. |
   | `WEB_ORIGIN` | — | `https://directoradio.com` | — |
   | `TRUSTED_CLIENT_IP_HEADER` | — | `fly-client-ip` | — |
@@ -54,7 +54,7 @@
     - Sin `Referer`, se permite: algunos navegadores lo omiten.
   - **Base de datos:** la consulta de la emisora tiene un límite de 3 s (`503`). `429` y `503` llevan `Retry-After: 30`.
   - **Registro:** cada respuesta que no sea 200 escribe una línea JSON en stdout con `{ts, event:'proxy_error', status, stationId, reason}`. Nunca se registran la URL del stream ni la IP en claro.
-- **Tarea diaria:** `node dist/jobs/daily.mjs` hace, en orden, sincronización, borrado de reproducciones antiguas y comprobación de salud. Si una fase falla, se registra y la siguiente se ejecuta igualmente. El código de salida es 1 si alguna fase falló.
+- **Tarea diaria:** `node dist/daily.mjs` hace, en orden, sincronización, borrado de reproducciones antiguas y comprobación de salud. Si una fase falla, se registra y la siguiente se ejecuta igualmente. El código de salida es 1 si alguna fase falló **o si la comprobación de salud se abortó**.
 - **Comprobación de salud (salvaguarda):**
   - La primera ejecución en producción se hace a mano y se revisa: si falla más del 30 %, no se programa la tarea diaria hasta investigar.
   - En cada ejecución, si falla más del 50 % de las emisoras comprobadas, no se suman fallos consecutivos y se registra `health_aborted_high_failure_rate`. Así se protege el catálogo ante un fallo de red del propio servidor.
@@ -77,18 +77,21 @@
 
 **Interfaces:**
 - Produces:
-  - `dbOptions(url: string, env?: NodeJS.ProcessEnv): postgres.Options<{}>` (exportada) devuelve:
-    - `prepare: false` si el host de la URL contiene `-pooler` o si `DB_POOLED=true`.
+  - `dbOptions(url: string, env?: NodeJS.ProcessEnv, overrides?: { statementTimeoutMs?: number }): postgres.Options<{}>` (exportada) devuelve:
+    - `prepare: false` e `idle_timeout: 20` si el host de la URL contiene `-pooler` o si `DB_POOLED=true`.
     - `max: Number(DB_POOL_MAX)`, o el valor por defecto de postgres-js si no está definida.
-    - `connection: { statement_timeout: Number(DB_STATEMENT_TIMEOUT_MS) }` si está definida.
-    - `ssl: 'require'` si la URL no apunta a `localhost` o `127.0.0.1`.
-  - `getDb(url?)` usa `dbOptions`.
-  - `migrate.ts` usa `DATABASE_URL_DIRECT ?? DATABASE_URL`.
+    - `connection: { statement_timeout }` **solo si la URL no es *pooled*** (PgBouncer rechaza parámetros de arranque desconocidos), tomando `overrides.statementTimeoutMs` si está definido y, si no, `DB_STATEMENT_TIMEOUT_MS`.
+    - `ssl: 'verify-full'` si la URL no apunta a `localhost` o `127.0.0.1`.
+  - `getDb(url?, overrides?)` usa `dbOptions`; la caché distingue por URL **y** por `overrides`.
+  - `migrate.ts` usa `DATABASE_URL_DIRECT ?? DATABASE_URL` con `statementTimeoutMs: 0`. Las tareas (`daily`, `sync`, `health`) hacen lo mismo.
 
 - [ ] **Step 1: Tests**:
-  - `disables prepared statements for pooled urls`: `dbOptions('postgres://u:p@ep-x-pooler.eu-central-1.aws.neon.tech/db')` → `prepare === false` y `ssl === 'require'`.
+  - `disables prepared statements for pooled urls`: `dbOptions('postgres://u:p@ep-x-pooler…/db')` → `prepare === false`, `ssl === 'verify-full'` e `idle_timeout === 20`.
   - `keeps defaults locally`: con `localhost`, `prepare` no es `false` y `ssl` es `undefined`.
-  - `reads pool size and statement timeout`: con env `{DB_POOL_MAX:'1', DB_STATEMENT_TIMEOUT_MS:'5000'}` → `max === 1` y `connection.statement_timeout === 5000`.
+  - `reads pool size and statement timeout`: con env `{DB_POOL_MAX:'1', DB_STATEMENT_TIMEOUT_MS:'5000'}` sobre URL no *pooled* → `max === 1` y `connection.statement_timeout === 5000`.
+  - `never sends statement_timeout as a startup parameter through a pooler`: URL *pooled* (o `DB_POOLED=true`) con `DB_STATEMENT_TIMEOUT_MS` → sin `connection.statement_timeout`.
+  - `applies an explicit statement timeout override on direct urls`: URL directa con `{statementTimeoutMs: 0}` → `connection.statement_timeout === 0`.
+  - `caches per url and per overrides`: `getDb(url)` y `getDb(url, {statementTimeoutMs: 0})` devuelven instancias distintas y estables.
 - [ ] **Step 2:** FAIL. **Step 3:** Implementar y añadir `"engines": { "node": ">=22.19" }`. **Step 4:** `npm test` → PASS.
 - [ ] **Step 5:** Commit `feat(db): production connection options for Neon pooled connections`.
 
@@ -210,7 +213,7 @@
     3. `runtime` (`node:24-slim`): `npm ci --omit=dev`, copia `dist/` y `drizzle/`, `USER node`, `EXPOSE 4100` y `CMD ["node","dist/proxy.mjs"]`.
   - `fly.toml`:
     - `app = "directoradio-audio"` y `primary_region = "mad"`.
-    - `[env]`: `AUDIO_PROXY_PORT=4100`, `WEB_ORIGIN=https://directoradio.com`, `TRUSTED_CLIENT_IP_HEADER=fly-client-ip` y `DB_STATEMENT_TIMEOUT_MS=5000`.
+    - `[env]`: `AUDIO_PROXY_PORT=4100`, `WEB_ORIGIN=https://directoradio.com` y `TRUSTED_CLIENT_IP_HEADER=fly-client-ip`.
     - `[http_service]`: `internal_port=4100`, `force_https=true`, `auto_stop_machines="off"`, `min_machines_running=1`, `concurrency` de tipo `connections` con `soft_limit=180` y `hard_limit=200`.
     - Healthcheck HTTP en `/healthz` cada 15 s.
     - `[[vm]]` con `memory="512mb"`.
@@ -240,19 +243,31 @@ Estos pasos tocan sistemas externos y cuentas del responsable. El controlador lo
   - Generar `PLAYS_IP_SALT` con `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` y añadirlo al mismo fichero.
 - [ ] **P3 · Fly (app y secretos):**
   - `fly apps create directoradio-audio`.
-  - Subir los secretos desde el fichero, sin mostrar valores: `DATABASE_URL` y `DATABASE_URL_DIRECT`. `RADIO_BROWSER_BASE_URL` no es secreto y va en `[env]` de `fly.toml`.
-  - `fly deploy`.
+  - Subir los secretos desde el fichero, sin mostrar valores (`fly secrets import` lee de la entrada estándar). En PowerShell:
+    ```powershell
+    Get-Content .env.production.local | Select-String '^(DATABASE_URL|DATABASE_URL_DIRECT)=' | ForEach-Object { $_.Line } | fly secrets import -a directoradio-audio
+    ```
+    `RADIO_BROWSER_BASE_URL` no es secreto y va en `[env]` de `fly.toml`.
+  - `fly deploy --ha=false`.
   - Comprobar que `https://directoradio-audio.fly.dev/healthz` responde 200.
-- [ ] **P4 · Migraciones y primera carga, desde Fly** (la red corporativa puede bloquear el puerto 5432 y ralentiza los streams):
-  - `fly machine run . --command "node dist/migrate.mjs" --rm`.
-  - `fly machine run . --command "node dist/sync.mjs" --rm`. Se espera `inserted` > 40000.
+- [ ] **P4 · Límite de consulta, migraciones y primera carga, desde Fly** (la red corporativa puede bloquear el puerto 5432 y ralentiza los streams):
+  - Fijar **una sola vez** el límite por rol, conectando por la **cadena directa** (la *pooled* de Neon va por PgBouncer y rechaza `statement_timeout` como parámetro de arranque):
+    ```sql
+    ALTER ROLE <rol_de_neon> SET statement_timeout = '5s';
+    ```
+    Afecta a la web (Vercel) y al proxy, que entran por el *pooler*. Las tareas lo anulan a 0 en su conexión directa, porque sincronizar y comprobar salud lleva minutos.
+  - Obtener la imagen desplegada: `fly releases --image -a directoradio-audio` (primera fila) o `fly image show -a directoradio-audio`.
+  - `fly machine run <imagen_desplegada> node dist/migrate.mjs --rm --restart no --region mad --vm-memory 1024 -a directoradio-audio`.
+  - `fly machine run <imagen_desplegada> node dist/sync.mjs --rm --restart no --region mad --vm-memory 1024 -a directoradio-audio`. Se espera `inserted` > 40000.
 - [ ] **P5 · Primera comprobación de salud manual:**
-  - `fly machine run . --command "node dist/health.mjs" --rm`.
+  - `fly machine run <imagen_desplegada> node dist/health.mjs --rm --restart no --region mad --vm-memory 1024 -a directoradio-audio`.
   - Si `failed / checked > 0.3`, parar y analizar con el responsable antes de seguir.
-- [ ] **P6 · Tarea diaria:** `fly machine run . --schedule daily --command "node dist/daily.mjs"`, en la región `mad`.
+- [ ] **P6 · Tarea diaria:**
+  - `fly machine run <imagen_desplegada> node dist/daily.mjs --schedule daily --restart no --region mad --vm-memory 1024 -a directoradio-audio`.
+  - La máquina programada queda anclada a esa imagen: tras cada `fly deploy` posterior hay que actualizarla con `fly machine update <id_maquina_diaria> --image <nueva_imagen> -a directoradio-audio`.
 - [ ] **P7 · Vercel:**
   - Importar el repositorio de GitHub (interfaz web o `vercel link`).
-  - Cargar las variables de entorno de producción desde el fichero: `DATABASE_URL`, `DB_POOL_MAX=1`, `DB_STATEMENT_TIMEOUT_MS=5000`, `NEXT_PUBLIC_AUDIO_PROXY_URL=https://audio.directoradio.com` y `PLAYS_IP_SALT`.
+  - Cargar las variables de entorno de producción desde el fichero: `DATABASE_URL` (cadena *pooled*), `DB_POOL_MAX=1`, `NEXT_PUBLIC_AUDIO_PROXY_URL=https://audio.directoradio.com` y `PLAYS_IP_SALT`. Sin `DB_STATEMENT_TIMEOUT_MS`: el límite lo pone el rol de Neon.
   - Desplegar en producción.
 - [ ] **P8 · Dominios y DNS (Cloudflare, «DNS only»):**
   - Vercel: añadir `directoradio.com` (principal) y `www.directoradio.com` (redirección 308), y crear en Cloudflare los registros que indique Vercel.
@@ -262,5 +277,6 @@ Estos pasos tocan sistemas externos y cuentas del responsable. El controlador lo
   - La portada carga con emisoras españolas primero.
   - Suena una emisora `https` y una `http` (pasando por `audio.directoradio.com`).
   - La primera reproducción devuelve `204` en `/api/reproducciones`.
+  - La 31.ª reproducción desde la misma IP en una hora devuelve `429`: confirma que `PLAYS_IP_SALT` está puesta y que la IP se lee bien en Vercel.
   - `curl -H "Referer: https://evil.example/" https://audio.directoradio.com/stream/{id}` → 403.
   - `fly logs` muestra líneas `proxy_error` legibles.

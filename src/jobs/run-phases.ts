@@ -20,3 +20,9 @@ export async function runPhases(
 
   return { ok, results }
 }
+
+/** A phase failure, or a health check that aborted, makes the whole run fail. */
+export function exitCodeFor(outcome: { ok: boolean; results: Record<string, unknown> }): number {
+  const health = outcome.results.health as { aborted?: boolean } | undefined
+  return outcome.ok && !health?.aborted ? 0 : 1
+}

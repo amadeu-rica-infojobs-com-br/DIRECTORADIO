@@ -5,16 +5,17 @@ import { seedTagGenres } from '@/catalog/seed/tag-genres'
 import { syncCatalog } from '@/catalog/sync'
 import { pruneOldPlays } from '@/catalog/plays'
 import { runHealthCheck } from '@/catalog/health'
-import { runPhases } from '@/jobs/run-phases'
+import { runPhases, exitCodeFor } from '@/jobs/run-phases'
 
 config({ path: '.env.local', quiet: true })
 
 const log = (line: object) => console.log(JSON.stringify({ ts: new Date().toISOString(), ...line }))
 
-async function main(): Promise<boolean> {
-  const db = getDb()
+async function main(): Promise<number> {
+  // Direct connection, no statement timeout: the daily work is long by nature.
+  const db = getDb(process.env.DATABASE_URL_DIRECT ?? process.env.DATABASE_URL, { statementTimeoutMs: 0 })
   try {
-    const { ok } = await runPhases(
+    const outcome = await runPhases(
       [
         {
           name: 'sync',
@@ -35,15 +36,15 @@ async function main(): Promise<boolean> {
       ],
       log,
     )
-    return ok
+    return exitCodeFor(outcome)
   } finally {
     await (db as unknown as { $client: { end: () => Promise<void> } }).$client.end()
   }
 }
 
 main().then(
-  (ok) => {
-    process.exitCode = ok ? 0 : 1
+  (code) => {
+    process.exitCode = code
   },
   (err) => {
     log({ event: 'daily_failed', error: String(err?.message ?? err) })

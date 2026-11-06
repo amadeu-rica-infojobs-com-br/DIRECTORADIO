@@ -51,20 +51,37 @@ Los secretos viven en `.env.production.local` (ignorado por git) y nunca se escr
 
 1. **CLIs:** instala `flyctl` (`winget install Fly-io.flyctl`) y la CLI de Vercel (`npm i -g vercel`); inicia sesión con `fly auth login` y `vercel login`.
 2. **Neon:** crea el proyecto `directoradio` (AWS Europe Central 1 – Frankfurt, Postgres 17). Guarda en `.env.production.local` la cadena *pooled* como `DATABASE_URL` y la directa como `DATABASE_URL_DIRECT`. Genera `PLAYS_IP_SALT` con `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` y añádelo al mismo fichero.
-3. **Fly (app y secretos):** `fly apps create directoradio-audio`. Sube `DATABASE_URL` y `DATABASE_URL_DIRECT` sin mostrarlos; `fly secrets import` lee de la entrada estándar, p. ej. en bash `grep -E '^(DATABASE_URL|DATABASE_URL_DIRECT)=' .env.production.local | fly secrets import`. Despliega con `fly deploy` y comprueba que `https://directoradio-audio.fly.dev/healthz` responde 200.
-4. **Migraciones y primera carga, desde Fly** (la red corporativa puede bloquear el puerto 5432):
-   ```bash
-   fly machine run . --command "node dist/migrate.mjs" --rm
-   fly machine run . --command "node dist/sync.mjs" --rm      # se espera inserted > 40000
+3. **Fly (app y secretos):** `fly apps create directoradio-audio`. Sube `DATABASE_URL` y `DATABASE_URL_DIRECT` sin mostrarlos: `fly secrets import` lee de la entrada estándar.
+   ```powershell
+   Get-Content .env.production.local | Select-String '^(DATABASE_URL|DATABASE_URL_DIRECT)=' | ForEach-Object { $_.Line } | fly secrets import -a directoradio-audio
    ```
-5. **Primera comprobación de salud:** `fly machine run . --command "node dist/health.mjs" --rm`. Si `failed / checked > 0.3`, para y analiza antes de seguir.
-6. **Tarea diaria:** `fly machine run . --schedule daily --command "node dist/daily.mjs"` (región `mad`).
-7. **Vercel:** importa el repositorio de GitHub (o `vercel link`) y carga las variables de producción desde el fichero: `DATABASE_URL`, `DB_POOL_MAX=1`, `DB_STATEMENT_TIMEOUT_MS=5000`, `NEXT_PUBLIC_AUDIO_PROXY_URL=https://audio.directoradio.com` y `PLAYS_IP_SALT`. Despliega a producción.
+   Despliega con `fly deploy --ha=false` y comprueba que `https://directoradio-audio.fly.dev/healthz` responde 200.
+4. **Límite de consulta y primera carga, desde Fly** (la red corporativa puede bloquear el puerto 5432):
+   - Fija una vez el límite por rol, sobre la **conexión directa** (la *pooled* de Neon rechaza `statement_timeout` como parámetro de arranque). Afecta a la web y al proxy, que entran por el *pooler*; las tareas lo anulan a 0 en su conexión directa:
+     ```sql
+     ALTER ROLE <rol_de_neon> SET statement_timeout = '5s';
+     ```
+   - Averigua la imagen desplegada con `fly releases --image -a directoradio-audio` (primera fila) o `fly image show -a directoradio-audio`, y ejecútala como máquina temporal:
+     ```bash
+     fly machine run <imagen_desplegada> node dist/migrate.mjs --rm --restart no --region mad --vm-memory 1024 -a directoradio-audio
+     fly machine run <imagen_desplegada> node dist/sync.mjs    --rm --restart no --region mad --vm-memory 1024 -a directoradio-audio   # se espera inserted > 40000
+     ```
+5. **Primera comprobación de salud:**
+   ```bash
+   fly machine run <imagen_desplegada> node dist/health.mjs --rm --restart no --region mad --vm-memory 1024 -a directoradio-audio
+   ```
+   Si `failed / checked > 0.3`, para y analiza antes de seguir.
+6. **Tarea diaria:**
+   ```bash
+   fly machine run <imagen_desplegada> node dist/daily.mjs --schedule daily --restart no --region mad --vm-memory 1024 -a directoradio-audio
+   ```
+   La máquina programada queda anclada a esa imagen: tras cada `fly deploy` posterior, actualízala con `fly machine update <id_maquina_diaria> --image <nueva_imagen> -a directoradio-audio`.
+7. **Vercel:** importa el repositorio de GitHub (o `vercel link`) y carga las variables de producción desde el fichero: `DATABASE_URL` (cadena *pooled*), `DB_POOL_MAX=1`, `NEXT_PUBLIC_AUDIO_PROXY_URL=https://audio.directoradio.com` y `PLAYS_IP_SALT`. No pongas `DB_STATEMENT_TIMEOUT_MS`: el límite lo da el rol de Neon. Despliega a producción.
 8. **Dominios y DNS (Cloudflare):** todos los registros en modo **«DNS only»** (sin proxy naranja).
    - Vercel: añade `directoradio.com` (principal) y `www.directoradio.com` (redirección 308) y crea en Cloudflare los registros que indique Vercel.
    - Fly: `fly certs add audio.directoradio.com` y `CNAME audio → directoradio-audio.fly.dev`.
    - Espera a que ambos certificados estén emitidos.
-9. **Comprobación final:** la portada carga con emisoras españolas primero; suena una emisora `https` y otra `http` (vía `audio.directoradio.com`); la primera reproducción devuelve `204` en `/api/reproducciones`; `curl -H "Referer: https://evil.example/" https://audio.directoradio.com/stream/{id}` devuelve 403; `fly logs` muestra líneas `proxy_error` legibles.
+9. **Comprobación final:** la portada carga con emisoras españolas primero; suena una emisora `https` y otra `http` (vía `audio.directoradio.com`); la primera reproducción devuelve `204` en `/api/reproducciones` y la 31.ª desde la misma IP en una hora devuelve `429` (confirma la sal y la lectura de la IP en Vercel); `curl -H "Referer: https://evil.example/" https://audio.directoradio.com/stream/{id}` devuelve 403; `fly logs` muestra líneas `proxy_error` legibles.
 
 Seguridad: el proxy confía en la cabecera `Fly-Client-IP` (`TRUSTED_CLIENT_IP_HEADER`) para limitar conexiones por IP porque el edge de Fly es el único ingress. No expongas la app por otra vía de entrada (túneles, otro proxy o IP pública directa), o la cabecera podría falsificarse.
 

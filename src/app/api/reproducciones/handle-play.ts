@@ -1,6 +1,7 @@
 import type { Db } from '@/db/client'
 import { hashIp, recordPlay } from '@/catalog/plays'
 import { clientIpFromHeaders } from '@/lib/client-ip'
+import { ipKey } from '@/lib/ip-key'
 import { isUuid } from '@/lib/uuid'
 
 export const MAX_BODY_BYTES = 1024
@@ -29,7 +30,7 @@ export async function handlePlay(db: Db, request: Request, opts: { salt?: string
   if (!isUuid(stationId) || !isUuid(sessionId)) return status(400)
 
   const ip = clientIpFromHeaders(request.headers)
-  const ipHash = ip && opts.salt ? hashIp(ip, opts.salt) : null
+  const ipHash = ip && opts.salt ? hashIp(ipKey(ip) ?? ip, opts.salt) : null
 
   const result = await recordPlay(db, stationId, sessionId, ipHash)
   if (result === 'rate-limited') {

@@ -6,7 +6,12 @@ import postgres from 'postgres'
 import { dbOptions } from './client'
 
 export async function runMigrations(url: string): Promise<void> {
-  const client = postgres(url, { ...dbOptions(url), max: 1, onnotice: () => {} })
+  // Migrations use the direct URL and no statement timeout: they may be slow.
+  const client = postgres(url, {
+    ...dbOptions(url, process.env, { statementTimeoutMs: 0 }),
+    max: 1,
+    onnotice: () => {},
+  })
   try {
     await migrate(drizzle(client), { migrationsFolder: path.resolve(process.cwd(), 'drizzle') })
   } finally {
