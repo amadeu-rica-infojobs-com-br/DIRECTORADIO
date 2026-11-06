@@ -28,6 +28,8 @@ export async function recordPlay(
     if (!station) return 'not-found'
 
     if (ipHash) {
+      // Lock order is always station -> ip; serializes the count/insert per ip across stations.
+      await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${ipHash}))`)
       const [counts] = await tx
         .select({
           hour: sql<number>`count(*) filter (where ${plays.createdAt} > now() - interval '1 hour')`.mapWith(Number),

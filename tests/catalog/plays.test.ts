@@ -125,6 +125,27 @@ describe('recordPlay', () => {
     expect(await ctx.db.select().from(plays)).toHaveLength(1)
   })
 
+  it('caps per-ip plays under concurrency across stations', async () => {
+    const ip = hashIp('203.0.113.9', 'salt')
+    const sts = []
+    for (let i = 0; i < 40; i++) sts.push(await addStation({ slug: `c-${i}`, name: `c-${i}`, externalId: `c-${i}` }))
+    const client = postgres(assertTestDbUrl(process.env.DATABASE_URL_TEST), {
+      max: 20,
+      onnotice: () => {},
+    })
+    try {
+      const db = drizzle(client, { schema })
+      const results = await Promise.allSettled(sts.map((s) => recordPlay(db, s.id, randomUUID(), ip)))
+      expect(results.filter((r) => r.status === 'rejected')).toHaveLength(0)
+      const values = results.map((r) => (r as PromiseFulfilledResult<string>).value)
+      expect(values.filter((v) => v === 'counted')).toHaveLength(PLAYS_PER_IP_HOUR)
+      expect(values.filter((v) => v === 'rate-limited')).toHaveLength(40 - PLAYS_PER_IP_HOUR)
+      expect(await ctx.db.select().from(plays).where(eq(plays.ipHash, ip))).toHaveLength(PLAYS_PER_IP_HOUR)
+    } finally {
+      await client.end()
+    }
+  })
+
   it('handles concurrent plays without deadlock', async () => {
     const st = await addStation()
     const client = postgres(assertTestDbUrl(process.env.DATABASE_URL_TEST), {
