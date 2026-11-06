@@ -6,6 +6,8 @@ import { stations } from '@/db/schema'
 import { isPublicHttpUrl } from '@/lib/net/public-url'
 import { pinnedFetch } from '@/lib/net/pinned-dispatcher'
 import { createProxyHandler } from '@/proxy/handler'
+import { clientKey } from '@/proxy/client-key'
+import { logProxyError } from '@/proxy/log'
 import { ConnectionLimiter } from '@/proxy/limits'
 
 config({ path: '.env.local', quiet: true })
@@ -27,12 +29,21 @@ const handler = createProxyHandler({
   limiter: new ConnectionLimiter(3, 200),
   webOrigin,
   headersTimeoutMs: 10000,
+  lookupTimeoutMs: 3000,
+  clientKey: (req) => clientKey(req, process.env.TRUSTED_CLIENT_IP_HEADER),
+  log: logProxyError,
 })
 
 const server = http.createServer((req, res) => {
   handler(req, res).catch((err) => {
     console.error(err)
-    if (!res.headersSent) res.writeHead(500)
+    if (!res.headersSent) {
+      res.writeHead(500, {
+        'Access-Control-Allow-Origin': webOrigin,
+        'Cache-Control': 'no-store',
+        'Content-Length': '0',
+      })
+    }
     res.end()
   })
 })
