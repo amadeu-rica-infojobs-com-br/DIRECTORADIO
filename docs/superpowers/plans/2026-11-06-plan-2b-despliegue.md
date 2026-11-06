@@ -240,7 +240,7 @@ Estos pasos tocan sistemas externos y cuentas del responsable. El controlador lo
   - Generar `PLAYS_IP_SALT` con `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` y añadirlo al mismo fichero.
 - [ ] **P3 · Fly (app y secretos):**
   - `fly apps create directoradio-audio`.
-  - Subir los secretos desde el fichero, sin mostrar valores: `DATABASE_URL`, `DATABASE_URL_DIRECT` y `RADIO_BROWSER_BASE_URL`.
+  - Subir los secretos desde el fichero, sin mostrar valores: `DATABASE_URL` y `DATABASE_URL_DIRECT`. `RADIO_BROWSER_BASE_URL` no es secreto y va en `[env]` de `fly.toml`.
   - `fly deploy`.
   - Comprobar que `https://directoradio-audio.fly.dev/healthz` responde 200.
 - [ ] **P4 · Migraciones y primera carga, desde Fly** (la red corporativa puede bloquear el puerto 5432 y ralentiza los streams):
