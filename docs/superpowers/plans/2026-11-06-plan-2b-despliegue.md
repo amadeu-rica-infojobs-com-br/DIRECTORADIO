@@ -234,14 +234,14 @@
 
 Estos pasos tocan sistemas externos y cuentas del responsable. El controlador los ejecuta uno a uno y se detiene cuando hace falta una acción del responsable: iniciar sesión, pegar un secreto o crear algo en una interfaz web. Ningún secreto pasa por el chat.
 
-- [ ] **P1 · CLIs:**
+- [x] **P1 · CLIs:**
   - Instalar `flyctl` (`winget install Fly-io.flyctl` o script oficial) y la CLI de Vercel (`npm i -g vercel`).
   - El responsable inicia sesión: `fly auth login` y `vercel login`.
-- [ ] **P2 · Neon (lo hace el responsable en la interfaz web):**
+- [x] **P2 · Neon (lo hace el responsable en la interfaz web):**
   - Crear el proyecto `directoradio`, región **AWS Europe Central 1 (Frankfurt)**, Postgres 17.
   - Copiar la cadena *pooled* y la directa en `.env.production.local` como `DATABASE_URL` y `DATABASE_URL_DIRECT`.
   - Generar `PLAYS_IP_SALT` con `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` y añadirlo al mismo fichero.
-- [ ] **P3 · Fly (app y secretos):**
+- [x] **P3 · Fly (app y secretos):**
   - `fly apps create directoradio-audio`.
   - Subir los secretos desde el fichero, sin mostrar valores (`fly secrets import` lee de la entrada estándar). En PowerShell:
     ```powershell
@@ -250,7 +250,7 @@ Estos pasos tocan sistemas externos y cuentas del responsable. El controlador lo
     `RADIO_BROWSER_BASE_URL` no es secreto y va en `[env]` de `fly.toml`.
   - `fly deploy --ha=false`.
   - Comprobar que `https://directoradio-audio.fly.dev/healthz` responde 200.
-- [ ] **P4 · Límite de consulta, migraciones y primera carga, desde Fly** (la red corporativa puede bloquear el puerto 5432 y ralentiza los streams):
+- [x] **P4 · Límite de consulta, migraciones y primera carga, desde Fly** (la red corporativa puede bloquear el puerto 5432 y ralentiza los streams):
   - Fijar **una sola vez** el límite por rol, conectando por la **cadena directa** (la *pooled* de Neon va por PgBouncer y rechaza `statement_timeout` como parámetro de arranque):
     ```sql
     ALTER ROLE <rol_de_neon> SET statement_timeout = '5s';
@@ -259,21 +259,21 @@ Estos pasos tocan sistemas externos y cuentas del responsable. El controlador lo
   - Obtener la imagen desplegada: `fly releases --image -a directoradio-audio` (primera fila) o `fly image show -a directoradio-audio`.
   - `fly machine run <imagen_desplegada> node dist/migrate.mjs --rm --restart no --region fra --vm-memory 1024 -a directoradio-audio`.
   - `fly machine run <imagen_desplegada> node dist/sync.mjs --rm --restart no --region fra --vm-memory 1024 -a directoradio-audio`. Se espera `inserted` > 40000.
-- [ ] **P5 · Primera comprobación de salud manual:**
+- [x] **P5 · Primera comprobación de salud manual:**
   - `fly machine run <imagen_desplegada> node dist/health.mjs --rm --restart no --region fra --vm-memory 1024 -a directoradio-audio`.
   - Si `failed / checked > 0.3`, parar y analizar con el responsable antes de seguir.
-- [ ] **P6 · Tarea diaria:**
+- [x] **P6 · Tarea diaria:**
   - `fly machine run <imagen_desplegada> node dist/daily.mjs --schedule daily --restart no --region fra --vm-memory 1024 -a directoradio-audio`.
   - La máquina programada queda anclada a esa imagen: tras cada `fly deploy` posterior hay que actualizarla con `fly machine update <id_maquina_diaria> --image <nueva_imagen> -a directoradio-audio`.
-- [ ] **P7 · Vercel:**
+- [x] **P7 · Vercel:**
   - Importar el repositorio de GitHub (interfaz web o `vercel link`).
   - Cargar las variables de entorno de producción desde el fichero: `DATABASE_URL` (cadena *pooled*), `DB_POOL_MAX=1`, `NEXT_PUBLIC_AUDIO_PROXY_URL=https://audio.directoradio.com` y `PLAYS_IP_SALT`. Sin `DB_STATEMENT_TIMEOUT_MS`: el límite lo pone el rol de Neon.
   - Desplegar en producción.
-- [ ] **P8 · Dominios y DNS (Cloudflare, «DNS only»):**
+- [x] **P8 · Dominios y DNS (Cloudflare, «DNS only»):**
   - Vercel: añadir `directoradio.com` (principal) y `www.directoradio.com` (redirección 308), y crear en Cloudflare los registros que indique Vercel.
   - Fly: `fly certs add audio.directoradio.com` y crear en Cloudflare `CNAME audio → directoradio-audio.fly.dev`.
   - Esperar a que ambos certificados estén emitidos.
-- [ ] **P9 · Comprobación final en producción:**
+- [x] **P9 · Comprobación final en producción:**
   - La portada carga con emisoras españolas primero.
   - Suena una emisora `https` y una `http` (pasando por `audio.directoradio.com`).
   - La primera reproducción devuelve `204` en `/api/reproducciones`.
