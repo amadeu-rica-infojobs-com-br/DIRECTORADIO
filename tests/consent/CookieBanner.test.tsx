@@ -13,7 +13,8 @@ const STATION = {
   streamUrl: 'https://cdn.example/a',
 }
 
-let gtag: ReturnType<typeof vi.fn>
+type Gtag = (...args: unknown[]) => void
+let gtag: ReturnType<typeof vi.fn<Gtag>>
 
 function renderBanner(withPlayer = false) {
   return render(
@@ -28,7 +29,7 @@ const banner = () => screen.queryByRole('region', { name: 'Aviso de cookies' })
 
 beforeEach(() => {
   localStorage.clear()
-  gtag = vi.fn()
+  gtag = vi.fn<Gtag>()
   window.gtag = gtag
 })
 
