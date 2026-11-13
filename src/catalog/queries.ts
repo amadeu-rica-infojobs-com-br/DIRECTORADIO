@@ -24,6 +24,7 @@ export type StationDetailData = StationCardData & {
   streamUrl: string
   homepageUrl: string | null
   languages: string[]
+  languageCodes: string[]
   tags: string[]
   playCount: number
   isHealthHidden: boolean
@@ -129,6 +130,7 @@ export async function getStationBySlug(db: Db, slug: string): Promise<StationDet
     streamUrl: row.streamUrl,
     homepageUrl: row.homepageUrl,
     languages: row.languages ?? [],
+    languageCodes: row.languageCodes,
     tags: tagRows.map((t) => t.name),
     playCount: row.playCount ?? 0,
     isHealthHidden: (row.healthConsecutiveFailures ?? 0) >= HEALTH_HIDE_THRESHOLD,

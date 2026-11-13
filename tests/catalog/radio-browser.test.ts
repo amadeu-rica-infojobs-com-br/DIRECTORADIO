@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it, vi } from 'vitest'
 import { fetchAllStations, RADIO_BROWSER_USER_AGENT } from '@/catalog/radio-browser/client'
-import { mapRbStation } from '@/catalog/radio-browser/map'
+import { mapRbStation, normalizeLanguageCodes } from '@/catalog/radio-browser/map'
 import type { RbStation } from '@/catalog/radio-browser/types'
 
 function rb(overrides: Partial<RbStation> = {}): RbStation {
@@ -236,6 +236,20 @@ describe('fetchAllStations', () => {
   })
 })
 
+describe('normalizeLanguageCodes', () => {
+  it('lowercases, dedupes and keeps only ISO-looking codes', () => {
+    expect(normalizeLanguageCodes('es, CA,es,,x1,spa')).toEqual(['es', 'ca', 'spa'])
+  })
+
+  it.each([undefined, ''])('returns [] for %j', (raw) => {
+    expect(normalizeLanguageCodes(raw)).toEqual([])
+  })
+
+  it('is used by mapRbStation', () => {
+    expect(mapRbStation(rb({ languagecodes: 'pt,PT' }))?.languageCodes).toEqual(['pt'])
+  })
+})
+
 describe('mapRbStation', () => {
   it('prefers url_resolved', () => {
     const mapped = mapRbStation(
@@ -259,6 +273,7 @@ describe('mapRbStation', () => {
       logoUrl: null,
       countryCode: 'ES',
       languages: ['spanish', 'catalan'],
+      languageCodes: [],
       tags: ['rock', 'pop'],
       rbClickCount: 7,
     })

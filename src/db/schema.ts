@@ -47,6 +47,7 @@ export const stations = pgTable(
     homepageUrl: text('homepage_url'),
     countryCode: varchar('country_code', { length: 2 }),
     languages: text('languages').array().default(sql`'{}'::text[]`),
+    languageCodes: text('language_codes').array().notNull().default(sql`'{}'::text[]`),
     genre: genreEnum('genre').notNull().default('variada'),
     status: statusEnum('status').notNull().default('activa'),
     deactivatedBySync: boolean('deactivated_by_sync').notNull().default(false),
@@ -63,7 +64,10 @@ export const stations = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
   },
-  (t) => [uniqueIndex('stations_source_external_id_idx').on(t.source, t.externalId)],
+  (t) => [
+    uniqueIndex('stations_source_external_id_idx').on(t.source, t.externalId),
+    index('stations_language_codes_idx').using('gin', t.languageCodes),
+  ],
 )
 
 export const tags = pgTable('tags', {

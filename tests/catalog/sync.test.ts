@@ -61,6 +61,22 @@ describe('syncCatalog', () => {
     expect(await tagNamesOf(ctx.db, row.id)).toEqual(['news', 'talk'])
   })
 
+  it('stores ISO language codes', async () => {
+    await syncCatalog(ctx.db, [rb({ stationuuid: 'u-lang', languagecodes: 'es,CA' })])
+    const [row] = await ctx.db.select().from(stations)
+    expect(row.languageCodes).toEqual(['es', 'ca'])
+  })
+
+  it('updates when language codes change, ignoring order', async () => {
+    await syncCatalog(ctx.db, [rb({ stationuuid: 'u-lang2', name: 'Radio L', url: 'https://s.example/l', url_resolved: 'https://s.example/l', languagecodes: 'es,ca' })])
+    const same = await syncCatalog(ctx.db, [rb({ stationuuid: 'u-lang2', name: 'Radio L', url: 'https://s.example/l', url_resolved: 'https://s.example/l', languagecodes: 'ca,es' })])
+    expect(same.updated).toBe(0)
+    const changed = await syncCatalog(ctx.db, [rb({ stationuuid: 'u-lang2', name: 'Radio L', url: 'https://s.example/l', url_resolved: 'https://s.example/l', languagecodes: 'pt' })])
+    expect(changed.updated).toBe(1)
+    const [row] = await ctx.db.select().from(stations)
+    expect(row.languageCodes).toEqual(['pt'])
+  })
+
   it('falls back when slug is empty', async () => {
     await syncCatalog(ctx.db, [
       rb({ stationuuid: '1a2b3c4d-0000-0000-0000-000000000000', name: 'Радио Рекорд' }),
