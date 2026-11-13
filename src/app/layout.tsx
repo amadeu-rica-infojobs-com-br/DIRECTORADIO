@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { Analytics, ConsentDefaults } from '@/consent/Analytics'
 import { getGtmId } from '@/consent/consent'
 import { CookieBanner } from '@/consent/CookieBanner'
+import { SiteFooter } from '@/components/SiteFooter'
 import { t } from '@/i18n'
 import { MiniPlayer } from '@/player/MiniPlayer'
 import { PlayerProvider } from '@/player/PlayerProvider'
@@ -31,7 +32,8 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
               </Link>
             </div>
           </header>
-          <main className="mx-auto w-full max-w-7xl flex-1 px-4 pt-6 pb-20">{children}</main>
+          <main className="mx-auto w-full max-w-7xl flex-1 px-4 pt-6 pb-10">{children}</main>
+          <SiteFooter showCookieSettings={gtmId !== null} />
           <MiniPlayer />
           {gtmId && <CookieBanner />}
         </PlayerProvider>

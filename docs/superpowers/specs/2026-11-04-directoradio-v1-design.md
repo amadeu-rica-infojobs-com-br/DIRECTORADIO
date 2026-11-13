@@ -65,7 +65,7 @@ La captación de tráfico depende en gran medida de Google ("radio fado online",
 - **Derechos de retransmisión:** el proxy de audio retransmite contenido protegido. La empresa **acepta ese riesgo** para v1.
 - **Tráfico previsto:** unos **100 usuarios al día**. Basta con planes pequeños o gratuitos. No hace falta escalado automático en v1.
 - **IA:** se usa la **API de OpenAI**, con la cuenta del responsable. Una suscripción a ChatGPT (Plus, Pro…) **no incluye acceso a la API**: hace falta una clave de API en platform.openai.com, con su propia facturación por uso. Conviene poner un límite de gasto mensual en esa cuenta.
-- **Sin publicidad ni analítica en v1.** Solo se usan cookies técnicas: la sesión de reproducción y la cookie firmada del email verificado. Por eso no hace falta banner de consentimiento de cookies, aunque la política de privacidad debe mencionarlas.
+- **Sin publicidad en v1. Analítica solo con consentimiento** (cambio del 2026-11-13, ver [diseño de analítica y consentimiento](2026-11-13-analitica-consentimiento-design.md)). Se usa Google Tag Manager con Consent Mode v2: todo está denegado hasta que el usuario pulsa «Aceptar» en un banner propio, que tiene «Aceptar» y «Rechazar» al mismo nivel. La política de cookies está en `/politica-de-cookies`. Las cookies técnicas (la sesión de reproducción, la elección de cookies y la cookie firmada del email verificado) no necesitan consentimiento, pero la política las menciona.
 - **Textos legales:** los redacta el equipo de desarrollo como parte de v1. Son la política de privacidad, el aviso legal y el texto de aceptación del voto. Se recomienda que un abogado los revise antes de abrir las valoraciones.
 
 ## 5. Enfoques considerados
