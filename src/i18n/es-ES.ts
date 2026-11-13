@@ -24,6 +24,12 @@ export const messages = {
   'player.live': 'En directo',
   'player.error': 'No se puede reproducir esta emisora ahora mismo.',
   'player.close': 'Cerrar reproductor',
+  'consent.label': 'Aviso de cookies',
+  'consent.text':
+    'Usamos cookies de analítica de Google para saber cómo se usa la web. Solo se activan si las aceptas.',
+  'consent.policy': 'Política de cookies',
+  'consent.accept': 'Aceptar',
+  'consent.reject': 'Rechazar',
   'genre.pop': 'Pop',
   'genre.electronica': 'Electrónica',
   'genre.rock': 'Rock',
