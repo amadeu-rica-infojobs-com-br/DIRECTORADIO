@@ -11,6 +11,12 @@ config({ path: '.env.local', quiet: true })
 
 const log = (line: object) => console.log(JSON.stringify({ ts: new Date().toISOString(), ...line }))
 
+// fetch() wraps network failures as "fetch failed"; the useful part (ECONNRESET, ...) is in the cause.
+const errorMessage = (err: unknown): string => {
+  const e = err as { message?: string; cause?: { message?: string } } | undefined
+  return [e?.message ?? String(err), e?.cause?.message].filter(Boolean).join(': ')
+}
+
 async function main(): Promise<number> {
   // Direct connection, no statement timeout: the daily work is long by nature.
   const db = getDb(process.env.DATABASE_URL_DIRECT ?? process.env.DATABASE_URL, { statementTimeoutMs: 0 })
@@ -21,7 +27,11 @@ async function main(): Promise<number> {
           name: 'sync',
           run: async () => {
             await seedTagGenres(db)
-            return syncCatalog(db, await fetchAllStations())
+            const stations = await fetchAllStations({
+              onRetry: ({ offset, attempt, delayMs, error }) =>
+                log({ event: 'radio_browser_retry', offset, attempt, delayMs, error: errorMessage(error) }),
+            })
+            return syncCatalog(db, stations)
           },
         },
         { name: 'prune', run: () => pruneOldPlays(db) },
