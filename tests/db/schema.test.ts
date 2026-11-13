@@ -30,6 +30,19 @@ describe('stations schema', () => {
     expect(row.manualFields).toEqual([])
   })
 
+  it('accepts the new genres', async () => {
+    await ctx.db.insert(stations).values({
+      slug: 'rap-fm',
+      name: 'Rap FM',
+      streamUrl: 'https://x/rap',
+      source: 'radio-browser',
+      externalId: 'u-rap',
+      genre: 'hip-hop',
+    })
+    const [row] = await ctx.db.select().from(stations)
+    expect(row.genre).toBe('hip-hop')
+  })
+
   it('rejects duplicate source+externalId', async () => {
     const base = {
       name: 'Cadena SER',

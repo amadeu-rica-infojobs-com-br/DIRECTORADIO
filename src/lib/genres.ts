@@ -10,6 +10,10 @@ export const GENRES = [
   'noticias',
   'deportes',
   'generalista',
+  'religiosa',
+  'latina',
+  'country-folk',
+  'hip-hop',
 ] as const
 
 export type Genre = (typeof GENRES)[number]

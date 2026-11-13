@@ -26,6 +26,10 @@ export const genreEnum = pgEnum('genre', [
   'noticias',
   'deportes',
   'generalista',
+  'religiosa',
+  'latina',
+  'country-folk',
+  'hip-hop',
 ])
 
 export const statusEnum = pgEnum('station_status', ['activa', 'desactivada', 'eliminada'])
