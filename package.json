@@ -21,6 +21,7 @@
     "proxy": "tsx src/proxy/server.ts"
   },
   "dependencies": {
+    "@next/third-parties": "16.4.5",
     "dotenv": "^18.0.9",
     "drizzle-orm": "^0.45.4",
     "hls.js": "^1.7.4",
