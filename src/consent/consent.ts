@@ -6,9 +6,9 @@ export const CONSENT_MAX_AGE_MS = 365 * 24 * 60 * 60 * 1000
 /** Evento de ventana que vuelve a abrir el banner ("Configurar cookies"). */
 export const OPEN_CONSENT_EVENT = 'dr:open-consent'
 
+// `window.dataLayer` ya lo declara @next/third-parties; aquí solo falta `gtag`.
 declare global {
   interface Window {
-    dataLayer?: unknown[]
     gtag?: (...args: unknown[]) => void
   }
 }
