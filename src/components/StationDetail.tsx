@@ -1,7 +1,8 @@
 import Link from 'next/link'
-import type { StationDetailData } from '@/catalog/queries'
+import type { StationCardData, StationDetailData } from '@/catalog/queries'
 import { AudioPlayer } from '@/components/AudioPlayer'
 import { Stars } from '@/components/Stars'
+import { StationGrid } from '@/components/StationGrid'
 import { StationLogo } from '@/components/StationLogo'
 import { t, tn } from '@/i18n'
 import { countryName, flagEmoji } from '@/lib/country'
@@ -18,7 +19,7 @@ function isHttpUrl(url: string | null): url is string {
   }
 }
 
-export function StationDetail({ station }: { station: StationDetailData }) {
+export function StationDetail({ station, similar }: { station: StationDetailData; similar: StationCardData[] }) {
   const country = countryName(station.countryCode)
   const flag = flagEmoji(station.countryCode)
   // Nombres en español a partir de los códigos ISO; sin códigos, los nombres libres de Radio-Browser.
@@ -100,6 +101,13 @@ export function StationDetail({ station }: { station: StationDetailData }) {
       )}
 
       {station.description && <p className="max-w-prose">{station.description}</p>}
+
+      {similar.length > 0 && (
+        <section className="mt-6 flex flex-col gap-4">
+          <h2 className="text-xl font-semibold">{t('station.similar')}</h2>
+          <StationGrid stations={similar} />
+        </section>
+      )}
     </article>
   )
 }

@@ -18,6 +18,7 @@ export const messages = {
   'station.plays.other': '{count} reproducciones',
   'station.unhealthy': 'Es posible que esta emisora no esté emitiendo ahora mismo.',
   'station.httpSoon': 'Esta emisora estará disponible muy pronto en DirectoRadio.',
+  'station.similar': 'Emisoras similares',
   'station.back': '← Volver al listado',
   'player.label': 'Reproductor',
   'player.connecting': 'Conectando…',

@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import type { StationDetailData } from '@/catalog/queries'
+import type { StationCardData, StationDetailData } from '@/catalog/queries'
 import { StationDetail } from '@/components/StationDetail'
 import { PlayerProvider } from '@/player/PlayerProvider'
 
@@ -23,13 +23,36 @@ const BASE: StationDetailData = {
   isHealthHidden: false,
 }
 
-function renderDetail(station: StationDetailData) {
+function renderDetail(station: StationDetailData, similar: StationCardData[] = []) {
   return render(
     <PlayerProvider>
-      <StationDetail station={station} />
+      <StationDetail station={station} similar={similar} />
     </PlayerProvider>,
   )
 }
+
+const card = (slug: string): StationCardData => ({
+  slug,
+  name: slug,
+  logoUrl: null,
+  countryCode: 'ES',
+  genre: 'rock',
+  ratingAvg: 0,
+  ratingCount: 0,
+})
+
+describe('StationDetail similar stations', () => {
+  it('hides the section without similar stations', () => {
+    renderDetail(BASE)
+    expect(screen.queryByRole('heading', { name: 'Emisoras similares' })).not.toBeInTheDocument()
+  })
+
+  it('shows the section with the similar stations', () => {
+    renderDetail(BASE, [card('a'), card('b')])
+    expect(screen.getByRole('heading', { name: 'Emisoras similares' })).toBeInTheDocument()
+    expect(screen.getAllByTestId('station-card-name')).toHaveLength(2)
+  })
+})
 
 describe('StationDetail languages', () => {
   it('shows Spanish names from ISO codes', () => {
