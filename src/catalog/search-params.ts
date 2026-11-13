@@ -24,8 +24,11 @@ function firstValid<T>(v: string | string[] | undefined, normalize: (s: string) 
   return undefined
 }
 
+// Caracteres de control (NUL incluido, que Postgres rechaza en texto UTF-8): se cambian por espacios.
+const CONTROL = /[\u0000-\u001f\u007f]/g
+
 const normQ = (s: string) => {
-  const q = s.trim().slice(0, MAX_Q).trim()
+  const q = s.replace(CONTROL, ' ').replace(/\s+/g, ' ').trim().slice(0, MAX_Q).trim()
   return q && HAS_WORD.test(q) ? q : undefined
 }
 const normCountry = (s: string) => {

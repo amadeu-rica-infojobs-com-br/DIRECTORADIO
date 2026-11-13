@@ -28,6 +28,21 @@ describe('SearchForm', () => {
     expect(genre.map((o) => o.textContent)).toEqual(['Todos', 'Latina', 'Rock'])
   })
 
+  it('resets the fields when the criteria change without remounting (client navigation)', () => {
+    const { rerender } = render(<SearchForm criteria={{ q: 'ser', country: 'PT' }} options={OPTIONS} />)
+    rerender(<SearchForm criteria={{ q: 'ser' }} options={OPTIONS} />)
+    expect(screen.getByRole('combobox', { name: 'País' })).toHaveValue('')
+    rerender(<SearchForm criteria={{}} options={OPTIONS} />)
+    expect(screen.getByRole('searchbox')).toHaveValue('')
+  })
+
+  it('keeps a current value selected even if the (cached) options lack it', () => {
+    render(<SearchForm criteria={{ country: 'FR', language: 'ca', genre: 'jazz' }} options={OPTIONS} />)
+    expect(screen.getByRole('combobox', { name: 'País' })).toHaveValue('FR')
+    expect(screen.getByRole('combobox', { name: 'Idioma' })).toHaveValue('ca')
+    expect(screen.getByRole('combobox', { name: 'Género' })).toHaveValue('jazz')
+  })
+
   it('keeps the current criteria selected', () => {
     render(<SearchForm criteria={{ q: 'ser', country: 'PT', language: 'pt', genre: 'latina' }} options={OPTIONS} />)
     expect(screen.getByRole('searchbox')).toHaveValue('ser')

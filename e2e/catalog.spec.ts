@@ -43,6 +43,9 @@ test('no results offers to remove a filter', async ({ page }) => {
   await page.getByRole('link', { name: 'Quitar «Género: Latina»' }).first().click()
   await expect(page).toHaveURL(/\/buscar\?pais=FR$/)
   await expect(page.getByTestId('station-card-name')).toHaveText(['Radio FR'])
+  // El desplegable ya no conserva el género quitado (si no, el siguiente «Buscar» lo volvería a aplicar).
+  await expect(page.getByRole('main').getByRole('combobox', { name: 'Género' })).toHaveValue('')
+  await expect(page.getByRole('main').getByRole('combobox', { name: 'País' })).toHaveValue('FR')
 })
 
 test('invalid filters are ignored', async ({ page }) => {

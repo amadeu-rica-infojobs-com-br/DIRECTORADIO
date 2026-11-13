@@ -39,7 +39,15 @@ function criteriaSql(c: SearchCriteria): SQL {
   if (c.q) {
     const contains = sql`${NAME_NORM} LIKE '%' || lower(f_unaccent(${escapeLike(c.q)})) || '%' ESCAPE '\\'`
     // Con 1-2 caracteres los trigramas no sirven: solo "contiene".
-    parts.push(c.q.length >= 3 ? sql`(${contains} OR lower(f_unaccent(${c.q})) <% ${NAME_NORM})` : contains)
+    if (c.q.length < 3) {
+      parts.push(contains)
+    } else {
+      // "Contiene" sin espacios: «los 40» → «LOS40», «rock fm» → «RockFM». Los trigramas (umbral por
+      // defecto de pg_trgm, 0,6) no llegan a estos casos: word_similarity('los 40', 'los40') = 0,44.
+      const noSpaces = escapeLike(c.q.replace(/\s+/g, ''))
+      const containsNoSpaces = sql`replace(${NAME_NORM}, ' ', '') LIKE '%' || lower(f_unaccent(${noSpaces})) || '%' ESCAPE '\\'`
+      parts.push(sql`(${contains} OR ${containsNoSpaces} OR lower(f_unaccent(${c.q})) <% ${NAME_NORM})`)
+    }
   }
   return sql.join(parts, sql` AND `)
 }

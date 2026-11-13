@@ -55,6 +55,12 @@ describe('searchStations', () => {
     expect((await names({ q: 'los40' }))[0]).toBe('LOS40')
   })
 
+  it('ignores spaces when matching ("los 40" finds "LOS40")', async () => {
+    await ctx.db.insert(stations).values([station('LOS40'), station('RockFM'), station('Kiss FM')])
+    expect(await names({ q: 'los 40' })).toEqual(['LOS40'])
+    expect(await names({ q: 'rock fm' })).toEqual(['RockFM'])
+  })
+
   it('uses only "contains" for 1-2 character texts', async () => {
     await ctx.db.insert(stations).values([station('Abc Radio'), station('Radio Xab'), station('Radio Ac')])
     expect((await names({ q: 'ab' })).sort()).toEqual(['Abc Radio', 'Radio Xab'])

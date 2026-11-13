@@ -307,9 +307,11 @@ Orden: puntuación `DESC`, popularidad `DESC`, `slug`.
     - la ficha de «Cadena SER» con similares españolas de noticias o generalistas.
   - Contar las emisoras en "Variada" (Expected: ~3.800 menos que las 34.819 de antes) y las que tienen `language_codes` no vacío.
 - [ ] **Step 3:** `npm test`, `npm run lint` y `npm run test:e2e` en verde. Commit `git commit -m "docs: plan 3 spec updates and handoff"`.
-- [ ] **Step 4: Producción** (después de fusionar el PR; lo autoriza el responsable). En la imagen nueva que despliega GitHub Actions:
-  - `fly machine run <imagen> node dist/migrate.mjs --rm --restart no --region fra --vm-memory 1024 -a directoradio-audio`;
-  - después, `node dist/sync.mjs` igual, para rellenar los códigos de idioma y los géneros;
-  - y `fly machine update 8d99350be19498 --image <imagen> -a directoradio-audio` para la tarea diaria.
+- [ ] **Step 4: Producción** (lo autoriza el responsable). Se sigue el orden de `docs/superpowers/HANDOFF.md` («Al desplegar el plan 3»):
+  - migrar Neon **antes de fusionar** (Vercel publica cada fusión al momento y el código nuevo necesita `language_codes` y `f_unaccent`);
+  - fusionar;
+  - `node dist/sync.mjs` en una máquina temporal de Fly con la imagen nueva;
+  - `fly machine update 8d99350be19498 --image <imagen> -a directoradio-audio`;
+  - y medir en Neon.
 
   Verificar `https://directoradio.com/buscar?q=cadena%20ser`.

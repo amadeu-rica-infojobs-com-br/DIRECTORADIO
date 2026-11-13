@@ -13,6 +13,11 @@ describe('parseSearchParams', () => {
     expect(parse({ q: 'a'.repeat(150) }).criteria.q).toHaveLength(100)
   })
 
+  it('replaces control characters such as NUL with spaces', () => {
+    expect(parse({ q: 'a\u0000b' }).criteria).toEqual({ q: 'a b' })
+    expect(parse({ q: '\u0000\u0007' }).criteria).toEqual({})
+  })
+
   it.each(['   ', '—', '!!!'])('drops text without letters or digits: %j', (q) => {
     expect(parse({ q }).criteria).toEqual({})
   })

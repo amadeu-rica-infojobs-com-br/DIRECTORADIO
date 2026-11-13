@@ -1,4 +1,4 @@
-import type { SearchCriteria } from '@/catalog/search-params'
+import { searchHref, type SearchCriteria } from '@/catalog/search-params'
 import type { FilterOptions } from '@/catalog/search'
 import { t } from '@/i18n'
 import { countryName } from '@/lib/country'
@@ -28,20 +28,34 @@ function Select({ name, label, value, options }: { name: string; label: string; 
   )
 }
 
+/** Añade el valor actual si las opciones (en caché hasta una hora) no lo incluyen, para que se vea seleccionado. */
+const withCurrent = <T extends string>(list: T[], current: T | undefined): T[] =>
+  current && !list.includes(current) ? [...list, current] : list
+
 export function SearchForm({ criteria, options }: { criteria: SearchCriteria; options: FilterOptions }) {
   // Sin nombre conocido, el código no se ofrece.
-  const countries = options.countries
+  const countries = withCurrent(options.countries, criteria.country)
     .map((c) => ({ value: c, label: countryName(c) }))
     .filter((o) => o.label)
     .sort(byLabel)
-  const languages = options.languages
+  const languages = withCurrent(options.languages, criteria.language)
     .map((l) => ({ value: l, label: languageName(l) }))
     .filter((o) => o.label)
     .sort(byLabel)
-  const genres = options.genres.map((g) => ({ value: g, label: genreLabel(g) })).sort(byLabel)
+  const genres = withCurrent(options.genres, criteria.genre)
+    .map((g) => ({ value: g, label: genreLabel(g) }))
+    .sort(byLabel)
 
   return (
-    <form method="get" action="/buscar" role="search" className="mb-6 flex flex-wrap items-end gap-3">
+    // key: los campos usan defaultValue, que React solo aplica al montar. Al navegar en el cliente
+    // (quitar un filtro con la ✕) hay que remontar el formulario para que muestre los criterios nuevos.
+    <form
+      key={searchHref(criteria)}
+      method="get"
+      action="/buscar"
+      role="search"
+      className="mb-6 flex flex-wrap items-end gap-3"
+    >
       <label className="flex min-w-48 flex-1 flex-col gap-1 text-xs text-neutral-500">
         {t('search.label')}
         <input
