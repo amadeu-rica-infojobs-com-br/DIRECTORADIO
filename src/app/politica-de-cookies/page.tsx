@@ -52,7 +52,9 @@ export default function CookiePolicyPage() {
       <p>
         Usamos Google Analytics, cargado mediante Google Tag Manager, para obtener estadísticas de uso: qué páginas
         se visitan y cómo se llega a ellas. Estas cookies solo se instalan si pulsas «Aceptar» en el aviso de
-        cookies. Su proveedor es Google.
+        cookies. Su proveedor es Google. Mientras no aceptes, o si rechazas, Google puede recibir avisos de visita
+        sin cookies ni identificadores (por ejemplo, que se ha visto una página), que no permiten reconocerte en
+        visitas posteriores.
       </p>
       <table className="mt-3 w-full border-collapse">
         <thead>
@@ -84,9 +86,9 @@ export default function CookiePolicyPage() {
       <h2 className={H2}>Cómo cambiar tu elección</h2>
       <p>
         Puedes cambiar de opinión cuando quieras con el enlace «Configurar cookies» del pie de la página. Si
-        retiras el consentimiento, dejamos de medir tu visita, pero las cookies <code>_ga</code> que ya estuvieran
-        instaladas siguen en tu navegador hasta que caducan o las borras tú desde su configuración (en la mayoría de
-        navegadores: Configuración → Privacidad → Cookies y datos de sitios).
+        retiras el consentimiento, dejamos de usar cookies de analítica, pero las cookies <code>_ga</code> que ya
+        estuvieran instaladas siguen en tu navegador hasta que caducan o las borras tú desde su configuración (en la
+        mayoría de navegadores: Configuración → Privacidad → Cookies y datos de sitios).
       </p>
 
       <h2 className={H2}>Responsable</h2>

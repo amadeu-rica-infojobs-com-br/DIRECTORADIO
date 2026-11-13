@@ -9,6 +9,12 @@ describe('cookie policy page', () => {
     expect(metadata.title).toBe('Política de cookies · DirectoRadio')
   })
 
+  it('does not promise that measurement stops, only that analytics cookies are not used', () => {
+    const { container } = render(<CookiePolicyPage />)
+    expect(container.textContent).not.toContain('dejamos de medir')
+    expect(container.textContent).toContain('sin cookies')
+  })
+
   it.each(['_ga', 'dr.consent', 'dr.session', '12 meses', 'Configurar cookies'])('mentions %s', (text) => {
     const { container } = render(<CookiePolicyPage />)
     expect(container.textContent).toContain(text)

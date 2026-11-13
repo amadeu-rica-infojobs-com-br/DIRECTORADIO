@@ -66,6 +66,13 @@ describe('CookieBanner', () => {
     expect(banner()).not.toBeInTheDocument()
   })
 
+  it('reserves space at the end of the page while open, so it never hides content', () => {
+    renderBanner()
+    expect(screen.getByTestId('consent-spacer')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Aceptar' }))
+    expect(screen.queryByTestId('consent-spacer')).not.toBeInTheDocument()
+  })
+
   it('stays hidden when a choice is stored', () => {
     saveConsent('granted')
     renderBanner()

@@ -14,6 +14,19 @@ export function CookieBanner() {
   const [open, setOpen] = useState(false)
   // Última elección conocida en esta página, por si localStorage está bloqueado.
   const lastChoice = useRef<ConsentChoice | null>(null)
+  const bannerRef = useRef<HTMLDivElement>(null)
+  const [height, setHeight] = useState(0)
+
+  useEffect(() => {
+    // Reserva la altura del banner al final de la página para que nunca tape el contenido (en móvil ocupa varias líneas).
+    const el = bannerRef.current
+    if (!open || !el) return
+    setHeight(el.offsetHeight)
+    if (typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(() => setHeight(el.offsetHeight))
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [open])
 
   useEffect(() => {
     // Tras el montaje, para no desajustar la hidratación (el HTML se genera sin elección).
@@ -36,27 +49,31 @@ export function CookieBanner() {
   }
 
   return (
-    <div
-      role="region"
-      aria-label={t('consent.label')}
-      className={`fixed inset-x-0 z-50 ${current ? 'bottom-20' : 'bottom-0'} border-t border-neutral-200 bg-white/95 backdrop-blur dark:border-neutral-800 dark:bg-neutral-950/95`}
-    >
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center">
-        <p className="flex-1 text-sm">
-          {t('consent.text')}{' '}
-          <Link href="/politica-de-cookies" className="underline">
-            {t('consent.policy')}
-          </Link>
-        </p>
-        <div className="flex gap-2">
-          <button type="button" className={BUTTON} onClick={() => choose('granted')}>
-            {t('consent.accept')}
-          </button>
-          <button type="button" className={BUTTON} onClick={() => choose('denied')}>
-            {t('consent.reject')}
-          </button>
+    <>
+      <div data-testid="consent-spacer" aria-hidden="true" style={{ height }} />
+      <div
+        ref={bannerRef}
+        role="region"
+        aria-label={t('consent.label')}
+        className={`fixed inset-x-0 z-50 ${current ? 'bottom-20' : 'bottom-0'} border-t border-neutral-200 bg-white/95 backdrop-blur dark:border-neutral-800 dark:bg-neutral-950/95`}
+      >
+        <div className="mx-auto flex w-full max-w-7xl flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:gap-3">
+          <p className="flex-1 text-xs sm:text-sm">
+            {t('consent.text')}{' '}
+            <Link href="/politica-de-cookies" className="underline">
+              {t('consent.policy')}
+            </Link>
+          </p>
+          <div className="flex gap-2">
+            <button type="button" className={BUTTON} onClick={() => choose('granted')}>
+              {t('consent.accept')}
+            </button>
+            <button type="button" className={BUTTON} onClick={() => choose('denied')}>
+              {t('consent.reject')}
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+    </>
   )
 }
