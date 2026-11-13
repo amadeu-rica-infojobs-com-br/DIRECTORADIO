@@ -85,7 +85,7 @@ export const stationTags = pgTable(
       .notNull()
       .references(() => tags.id, { onDelete: 'cascade' }),
   },
-  (t) => [primaryKey({ columns: [t.stationId, t.tagId] })],
+  (t) => [primaryKey({ columns: [t.stationId, t.tagId] }), index('station_tags_tag_id_idx').on(t.tagId)],
 )
 
 export const tagGenres = pgTable('tag_genres', {
