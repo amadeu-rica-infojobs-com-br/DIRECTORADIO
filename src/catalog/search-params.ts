@@ -1,4 +1,7 @@
-import { GENRES, type Genre } from '@/lib/genres'
+import { t } from '@/i18n'
+import { countryName } from '@/lib/country'
+import { genreLabel, GENRES, type Genre } from '@/lib/genres'
+import { languageName } from '@/lib/language'
 
 export type SearchCriteria = { q?: string; country?: string; language?: string; genre?: Genre }
 
@@ -66,4 +69,17 @@ export function searchHref(criteria: SearchCriteria, page = 1): string {
   if (page > 1) params.set('pagina', String(page))
   const qs = params.toString()
   return qs ? `/buscar?${qs}` : '/buscar'
+}
+
+/** Título que describe la búsqueda: «Emisoras de Portugal en portugués», «Emisoras: «ser»». */
+export function searchTitle(c: SearchCriteria): string {
+  if (!hasCriteria(c)) return t('search.title')
+  const parts = [t('search.titleBase')]
+  const country = c.country ? countryName(c.country) : ''
+  const language = c.language ? languageName(c.language).toLocaleLowerCase('es') : ''
+  if (country) parts.push(t('search.titleCountry', { name: country }))
+  if (language) parts.push(t('search.titleLanguage', { name: language }))
+  if (c.genre) parts.push(t('search.titleGenre', { name: genreLabel(c.genre) }))
+  const base = parts.join(' ')
+  return c.q ? `${base}: «${c.q}»` : base
 }

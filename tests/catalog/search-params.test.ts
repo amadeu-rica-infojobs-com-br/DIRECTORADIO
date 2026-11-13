@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest'
-import { hasCriteria, parseSearchParams, searchHref } from '@/catalog/search-params'
+import { hasCriteria, parseSearchParams, searchHref, searchTitle } from '@/catalog/search-params'
 
 const parse = (raw: Record<string, string | string[] | undefined>) => parseSearchParams(raw)
 
@@ -67,5 +67,17 @@ describe('hasCriteria', () => {
   it('is false only for empty criteria', () => {
     expect(hasCriteria({})).toBe(false)
     expect(hasCriteria({ genre: 'pop' })).toBe(true)
+  })
+})
+
+describe('searchTitle', () => {
+  it.each([
+    [{}, 'Buscar emisoras'],
+    [{ country: 'PT', language: 'pt' }, 'Emisoras de Portugal en portugués'],
+    [{ genre: 'latina' }, 'Emisoras del género Latina'],
+    [{ q: 'ser' }, 'Emisoras: «ser»'],
+    [{ q: 'ser', country: 'ES' }, 'Emisoras de España: «ser»'],
+  ] as const)('%j → %s', (criteria, title) => {
+    expect(searchTitle(criteria)).toBe(title)
   })
 })

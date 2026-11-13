@@ -1,5 +1,7 @@
+import { getCachedFilterOptions } from '@/catalog/filter-options-cached'
 import { getHomeStations } from '@/catalog/queries'
 import { Pagination } from '@/components/Pagination'
+import { SearchForm } from '@/components/search/SearchForm'
 import { StationGrid } from '@/components/StationGrid'
 import { getDb } from '@/db/client'
 import { t } from '@/i18n'
@@ -16,10 +18,14 @@ function parsePage(value: string | string[] | undefined): number {
 
 export default async function HomePage({ searchParams }: PageProps<'/'>) {
   const { pagina } = await searchParams
-  const { items, page, pageCount } = await getHomeStations(getDb(), parsePage(pagina))
+  const [{ items, page, pageCount }, options] = await Promise.all([
+    getHomeStations(getDb(), parsePage(pagina)),
+    getCachedFilterOptions(),
+  ])
 
   return (
     <>
+      <SearchForm criteria={{}} options={options} />
       <h1 className="mb-6 text-2xl font-bold">{t('home.title')}</h1>
       <StationGrid stations={items} />
       <Pagination page={page} pageCount={pageCount} />
