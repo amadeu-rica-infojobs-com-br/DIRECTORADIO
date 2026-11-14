@@ -43,6 +43,14 @@ describe('SearchForm', () => {
     expect(screen.getByRole('combobox', { name: 'Género' })).toHaveValue('jazz')
   })
 
+  it('can hide the text field, keeping the current text as a hidden field', () => {
+    const { container, rerender } = render(<SearchForm criteria={{}} options={OPTIONS} showText={false} />)
+    expect(screen.queryByRole('searchbox')).not.toBeInTheDocument()
+    expect(container.querySelector('input[name="q"]')).toBeNull()
+    rerender(<SearchForm criteria={{ q: 'ser' }} options={OPTIONS} showText={false} />)
+    expect(container.querySelector('input[type="hidden"][name="q"]')).toHaveValue('ser')
+  })
+
   it('keeps the current criteria selected', () => {
     render(<SearchForm criteria={{ q: 'ser', country: 'PT', language: 'pt', genre: 'latina' }} options={OPTIONS} />)
     expect(screen.getByRole('searchbox')).toHaveValue('ser')

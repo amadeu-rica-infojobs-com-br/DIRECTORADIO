@@ -1,18 +1,12 @@
 import { searchHref, type SearchCriteria } from '@/catalog/search-params'
 import type { FilterOptions } from '@/catalog/search'
 import { t } from '@/i18n'
-import { countryName } from '@/lib/country'
-import { genreLabel } from '@/lib/genres'
-import { languageName } from '@/lib/language'
-
-type Option = { value: string; label: string }
-
-const byLabel = (a: Option, b: Option) => a.label.localeCompare(b.label, 'es')
+import { buildFilterLists, type FilterOption } from './filter-lists'
 
 const field =
   'rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900'
 
-function Select({ name, label, value, options }: { name: string; label: string; value?: string; options: Option[] }) {
+function Select({ name, label, value, options }: { name: string; label: string; value?: string; options: FilterOption[] }) {
   return (
     <label className="flex flex-col gap-1 text-xs text-neutral-500">
       {label}
@@ -28,23 +22,17 @@ function Select({ name, label, value, options }: { name: string; label: string; 
   )
 }
 
-/** Añade el valor actual si las opciones (en caché hasta una hora) no lo incluyen, para que se vea seleccionado. */
-const withCurrent = <T extends string>(list: T[], current: T | undefined): T[] =>
-  current && !list.includes(current) ? [...list, current] : list
-
-export function SearchForm({ criteria, options }: { criteria: SearchCriteria; options: FilterOptions }) {
-  // Sin nombre conocido, el código no se ofrece.
-  const countries = withCurrent(options.countries, criteria.country)
-    .map((c) => ({ value: c, label: countryName(c) }))
-    .filter((o) => o.label)
-    .sort(byLabel)
-  const languages = withCurrent(options.languages, criteria.language)
-    .map((l) => ({ value: l, label: languageName(l) }))
-    .filter((o) => o.label)
-    .sort(byLabel)
-  const genres = withCurrent(options.genres, criteria.genre)
-    .map((g) => ({ value: g, label: genreLabel(g) }))
-    .sort(byLabel)
+export function SearchForm({
+  criteria,
+  options,
+  showText = true,
+}: {
+  criteria: SearchCriteria
+  options: FilterOptions
+  /** Con false no se pinta el campo de texto (lo da la cabecera), pero se conserva el texto actual. */
+  showText?: boolean
+}) {
+  const { country: countries, language: languages, genre: genres } = buildFilterLists(options, criteria)
 
   return (
     // key: los campos usan defaultValue, que React solo aplica al montar. Al navegar en el cliente
@@ -56,17 +44,21 @@ export function SearchForm({ criteria, options }: { criteria: SearchCriteria; op
       role="search"
       className="mb-6 flex flex-wrap items-end gap-3"
     >
-      <label className="flex min-w-48 flex-1 flex-col gap-1 text-xs text-neutral-500">
-        {t('search.label')}
-        <input
-          type="search"
-          name="q"
-          defaultValue={criteria.q ?? ''}
-          maxLength={100}
-          placeholder={t('search.placeholder')}
-          className={field}
-        />
-      </label>
+      {showText ? (
+        <label className="flex min-w-48 flex-1 flex-col gap-1 text-xs text-neutral-500">
+          {t('search.label')}
+          <input
+            type="search"
+            name="q"
+            defaultValue={criteria.q ?? ''}
+            maxLength={100}
+            placeholder={t('search.placeholder')}
+            className={field}
+          />
+        </label>
+      ) : (
+        criteria.q && <input type="hidden" name="q" value={criteria.q} />
+      )}
       <Select name="pais" label={t('search.country')} value={criteria.country} options={countries} />
       <Select name="idioma" label={t('search.language')} value={criteria.language} options={languages} />
       <Select name="genero" label={t('search.genre')} value={criteria.genre} options={genres} />
