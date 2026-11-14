@@ -1,6 +1,7 @@
 import type { FilterOptions } from '@/catalog/search'
 import type { SearchCriteria } from '@/catalog/search-params'
 import { t } from '@/i18n'
+import { criteriaChips } from './chips'
 import { buildFilterLists } from './filter-lists'
 import { FilterChips } from './FilterChips'
 import { SearchForm } from './SearchForm'
@@ -13,7 +14,7 @@ export function FilterBar({ criteria, options }: { criteria: SearchCriteria; opt
   const active = [criteria.country, criteria.language, criteria.genre].filter(Boolean).length
   return (
     <>
-      <FilterChips criteria={criteria} lists={buildFilterLists(options, criteria)} />
+      <FilterChips criteria={criteria} chips={criteriaChips(criteria)} lists={buildFilterLists(options, criteria)} />
       <noscript>
         <details className="mb-6">
           <summary className="cursor-pointer text-sm font-semibold">

@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useRef, useState, type CSSProperties } from 'react'
 import { searchHref, type SearchCriteria } from '@/catalog/search-params'
 import { t } from '@/i18n'
-import { criteriaChips } from './chips'
+import type { CriterionChip } from './chips'
 import { matchesQuery, type FilterLists } from './filter-lists'
 
 type Key = 'country' | 'language' | 'genre'
@@ -29,14 +29,25 @@ const SHEET =
 
 const DESKTOP = 640
 
-export function FilterChips({ criteria, lists }: { criteria: SearchCriteria; lists: FilterLists }) {
+export function FilterChips({
+  criteria,
+  chips,
+  lists,
+}: {
+  criteria: SearchCriteria
+  /** Etiquetas activas ya traducidas en el servidor (criteriaChips): el navegador no recalcula nombres. */
+  chips: CriterionChip[]
+  lists: FilterLists
+}) {
   const dialogRef = useRef<HTMLDialogElement>(null)
   const openerRef = useRef<HTMLButtonElement | null>(null)
   const [open, setOpen] = useState<Key | null>(null)
   const [query, setQuery] = useState('')
+  // Foco en el filtro solo en escritorio: en el móvil abriría el teclado encima de la hoja.
+  const [focusFilter, setFocusFilter] = useState(false)
   const [position, setPosition] = useState<CSSProperties>({})
 
-  const chipsByKey = new Map(criteriaChips(criteria).map((c) => [c.key, c]))
+  const chipsByKey = new Map(chips.map((c) => [c.key, c]))
   const textChip = chipsByKey.get('q')
 
   const openList = (key: Key, button: HTMLButtonElement, anchor: HTMLElement = button) => {
@@ -44,6 +55,7 @@ export function FilterChips({ criteria, lists }: { criteria: SearchCriteria; lis
     setOpen(key)
     setQuery('')
     // En escritorio, desplegable bajo la etiqueta; en móvil, hoja anclada abajo (solo clases).
+    setFocusFilter(window.innerWidth >= DESKTOP)
     if (window.innerWidth >= DESKTOP) {
       const r = anchor.getBoundingClientRect()
       setPosition({ position: 'fixed', top: r.bottom + 6, left: Math.min(r.left, window.innerWidth - 300) })
@@ -87,7 +99,6 @@ export function FilterChips({ criteria, lists }: { criteria: SearchCriteria; lis
               </button>
             )
           }
-          const value = chip.label.slice(chip.label.indexOf(': ') + 2)
           return (
             <span key={f.key} className={`${CHIP} ${ACTIVE} pr-0.5`}>
               <button
@@ -97,7 +108,7 @@ export function FilterChips({ criteria, lists }: { criteria: SearchCriteria; lis
                 onClick={(e) => openList(f.key, e.currentTarget, e.currentTarget.parentElement ?? e.currentTarget)}
                 className={`${ACTIVE} border-0 bg-transparent p-0 dark:bg-transparent`}
               >
-                {value}
+                {chip.value}
               </button>
               <Link href={chip.removeHref} aria-label={t('search.remove', { label: chip.label })} className={REMOVE}>
                 <span aria-hidden="true">✕</span>
@@ -135,7 +146,7 @@ export function FilterChips({ criteria, lists }: { criteria: SearchCriteria; lis
                   placeholder={t('search.filterList', { name: current.label })}
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  autoFocus
+                  autoFocus={focusFilter}
                   className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-800"
                 />
               </div>

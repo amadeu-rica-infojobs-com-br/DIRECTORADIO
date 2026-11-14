@@ -4,26 +4,17 @@ import { countryName } from '@/lib/country'
 import { genreLabel } from '@/lib/genres'
 import { languageName } from '@/lib/language'
 
-export type CriterionChip = { key: keyof SearchCriteria; label: string; removeHref: string }
+/** value: el valor legible («Portugal»); label: «País: Portugal». */
+export type CriterionChip = { key: keyof SearchCriteria; value: string; label: string; removeHref: string }
 
 /** Un elemento por criterio activo, con su etiqueta («País: Portugal») y el enlace a la búsqueda sin él. */
 export function criteriaChips(c: SearchCriteria): CriterionChip[] {
   const chips: CriterionChip[] = []
-  const without = (key: keyof SearchCriteria) => searchHref({ ...c, [key]: undefined })
-  if (c.q) chips.push({ key: 'q', label: `${t('search.text')}: ${c.q}`, removeHref: without('q') })
-  if (c.country)
-    chips.push({
-      key: 'country',
-      label: `${t('search.country')}: ${countryName(c.country) || c.country}`,
-      removeHref: without('country'),
-    })
-  if (c.language)
-    chips.push({
-      key: 'language',
-      label: `${t('search.language')}: ${languageName(c.language) || c.language}`,
-      removeHref: without('language'),
-    })
-  if (c.genre)
-    chips.push({ key: 'genre', label: `${t('search.genre')}: ${genreLabel(c.genre)}`, removeHref: without('genre') })
+  const add = (key: keyof SearchCriteria, name: string, value: string) =>
+    chips.push({ key, value, label: `${name}: ${value}`, removeHref: searchHref({ ...c, [key]: undefined }) })
+  if (c.q) add('q', t('search.text'), c.q)
+  if (c.country) add('country', t('search.country'), countryName(c.country) || c.country)
+  if (c.language) add('language', t('search.language'), languageName(c.language) || c.language)
+  if (c.genre) add('genre', t('search.genre'), genreLabel(c.genre))
   return chips
 }
