@@ -132,6 +132,7 @@ export function FilterChips({ criteria, lists }: { criteria: SearchCriteria; lis
                 <input
                   type="search"
                   aria-label={t('search.filterList', { name: current.label })}
+                  placeholder={t('search.filterList', { name: current.label })}
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   autoFocus

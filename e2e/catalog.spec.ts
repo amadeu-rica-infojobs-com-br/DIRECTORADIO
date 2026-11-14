@@ -44,9 +44,51 @@ test('no results offers to remove a filter', async ({ page }) => {
   await page.getByRole('link', { name: 'Quitar «Género: Latina»' }).first().click()
   await expect(page).toHaveURL(/\/buscar\?pais=FR$/)
   await expect(page.getByTestId('station-card-name')).toHaveText(['Radio FR'])
-  // El desplegable ya no conserva el género quitado (si no, el siguiente «Buscar» lo volvería a aplicar).
-  await expect(page.getByRole('main').getByRole('combobox', { name: 'Género' })).toHaveValue('')
-  await expect(page.getByRole('main').getByRole('combobox', { name: 'País' })).toHaveValue('FR')
+  // Tras quitar el género, la fila muestra solo el país activo.
+  await expect(page.getByRole('button', { name: 'País: Francia, cambiar' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Género ▾' })).toBeVisible()
+})
+
+test('chips open the option sheet', async ({ page }) => {
+  await page.goto('/buscar')
+  await page.getByRole('button', { name: 'País ▾' }).click()
+  const sheet = page.getByRole('dialog', { name: 'País' })
+  await sheet.getByRole('searchbox', { name: 'Filtrar País' }).fill('port')
+  await sheet.getByRole('link', { name: 'Portugal' }).click()
+  await expect(page).toHaveURL(/\/buscar\?pais=PT$/)
+  await expect(page.getByTestId('station-card-name')).toHaveText(['Rádio PT'])
+})
+
+test('header search keeps active filters', async ({ page }) => {
+  await page.goto('/buscar?pais=ES')
+  const box = page.getByRole('banner').getByRole('searchbox', { name: 'Buscar emisora por nombre' })
+  await box.fill('cadena')
+  await box.press('Enter')
+  await expect(page).toHaveURL(/\/buscar\?q=cadena&pais=ES$/)
+  await expect(page.getByTestId('station-card-name')).toHaveText(['Cadena SER'])
+})
+
+test.describe('mobile', () => {
+  test.use({ viewport: { width: 360, height: 740 } })
+  test('filters fit on mobile', async ({ page }) => {
+    await page.goto('/')
+    const card = await page.getByTestId('station-card-name').first().boundingBox()
+    expect(card?.y ?? Infinity).toBeLessThan(300)
+  })
+})
+
+test.describe('without JavaScript', () => {
+  test.use({ javaScriptEnabled: false })
+  test('works without JavaScript', async ({ page }) => {
+    await page.goto('/buscar')
+    const summary = page.locator('summary')
+    await expect(summary).toHaveText('Filtros (0)')
+    await summary.click()
+    await page.getByRole('combobox', { name: 'País' }).selectOption('PT')
+    await page.getByRole('button', { name: 'Buscar' }).click()
+    await expect(page).toHaveURL(/pais=PT/)
+    await expect(page.getByTestId('station-card-name')).toHaveText(['Rádio PT'])
+  })
 })
 
 test('invalid filters are ignored', async ({ page }) => {

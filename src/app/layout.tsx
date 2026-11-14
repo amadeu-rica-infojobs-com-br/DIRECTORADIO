@@ -1,10 +1,11 @@
+import { Suspense } from 'react'
 import type { Metadata } from 'next'
 import { Logo } from '@/components/Logo'
 import { Analytics, ConsentDefaults } from '@/consent/Analytics'
 import { getGtmId } from '@/consent/consent'
 import { CookieBanner } from '@/consent/CookieBanner'
 import { SiteFooter } from '@/components/SiteFooter'
-import { HeaderSearch } from '@/components/search/HeaderSearch'
+import { HeaderSearch, HeaderSearchFallback } from '@/components/search/HeaderSearch'
 import { t } from '@/i18n'
 import { MiniPlayer } from '@/player/MiniPlayer'
 import { PlayerProvider } from '@/player/PlayerProvider'
@@ -32,7 +33,9 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
           <header className="border-b border-neutral-200 dark:border-neutral-800">
             <div className="mx-auto flex w-full max-w-7xl items-center gap-4 px-4 py-4">
               <Logo />
-              <HeaderSearch />
+              <Suspense fallback={<HeaderSearchFallback />}>
+                <HeaderSearch />
+              </Suspense>
             </div>
           </header>
           <main className="mx-auto w-full max-w-7xl flex-1 px-4 pt-6 pb-10">{children}</main>
