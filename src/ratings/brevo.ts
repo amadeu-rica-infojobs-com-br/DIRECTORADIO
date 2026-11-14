@@ -1,3 +1,5 @@
+import { writeFileSync } from 'node:fs'
+
 export type VerificationMessage = { to: string; stationName: string; stars: number; url: string }
 export type SendVerification = (msg: VerificationMessage) => Promise<void>
 
@@ -33,6 +35,8 @@ export function brevoSender(apiKey: string | undefined, fetchImpl: typeof fetch 
   return async (msg) => {
     if (!apiKey) {
       console.info('[valoraciones] enlace de verificación:', msg.url)
+      // Solo en los e2e: Playwright no ve el log del servidor, así que el enlace se deja en un archivo.
+      if (process.env.RATINGS_DEV_LINK_FILE) writeFileSync(process.env.RATINGS_DEV_LINK_FILE, msg.url)
       return
     }
     const { text, html } = content(msg)

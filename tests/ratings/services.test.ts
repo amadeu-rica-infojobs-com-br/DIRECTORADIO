@@ -1,4 +1,7 @@
 // @vitest-environment node
+import { mkdtempSync, readFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { brevoSender } from '@/ratings/brevo'
 import { verifyTurnstile } from '@/ratings/turnstile'
@@ -34,6 +37,16 @@ describe('brevoSender', () => {
     const info = vi.spyOn(console, 'info').mockImplementation(() => {})
     await brevoSender(undefined)(MSG)
     expect(info).toHaveBeenCalledWith('[valoraciones] enlace de verificación:', MSG.url)
+  })
+})
+
+describe('dev link file', () => {
+  it('also writes the link to RATINGS_DEV_LINK_FILE when set (e2e only)', async () => {
+    vi.spyOn(console, 'info').mockImplementation(() => {})
+    const file = path.join(mkdtempSync(path.join(tmpdir(), 'dr-')), 'link.txt')
+    vi.stubEnv('RATINGS_DEV_LINK_FILE', file)
+    await brevoSender(undefined)(MSG)
+    expect(readFileSync(file, 'utf8')).toBe(MSG.url)
   })
 })
 
