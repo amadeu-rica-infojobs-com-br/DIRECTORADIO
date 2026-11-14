@@ -17,7 +17,7 @@ export default defineConfig({
   webServer: {
     // Se borra la caché de datos de Next (unstable_cache: opciones de filtros): sobrevive entre builds y
     // guardaría lo que hubiera en la BD de test de una ejecución anterior.
-    command: `node -e "require('fs').rmSync('.next/cache/fetch-cache',{recursive:true,force:true})" && npx tsx src/db/migrate.ts && npm run build && npm run start -- -p ${PORT}`,
+    command: `node -e "require('fs').rmSync('.next/cache/fetch-cache',{recursive:true,force:true})" && npx tsx src/db/migrate.ts && npx tsx e2e/seed-cli.ts && npm run build && npm run start -- -p ${PORT}`,
     url: `http://localhost:${PORT}`,
     reuseExistingServer: false,
     timeout: 300_000,

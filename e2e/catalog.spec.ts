@@ -97,6 +97,18 @@ test('invalid filters are ignored', async ({ page }) => {
   await expect(page.getByTestId('station-card-name')).toHaveCount(4)
 })
 
+test('footer links to the legal pages', async ({ page }) => {
+  for (const [name, path, heading] of [
+    ['Aviso legal', '/aviso-legal', 'Aviso legal'],
+    ['Privacidad', '/privacidad', 'Política de privacidad'],
+  ] as const) {
+    await page.goto('/')
+    await page.getByRole('contentinfo').getByRole('link', { name }).click()
+    await expect(page).toHaveURL(new RegExp(`${path}$`))
+    await expect(page.getByRole('heading', { level: 1, name: heading })).toBeVisible()
+  }
+})
+
 test('desactivada returns 404', async ({ page }) => {
   const response = await page.goto('/emisora/radio-off')
   expect(response?.status()).toBe(404)

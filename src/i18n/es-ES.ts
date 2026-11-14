@@ -31,6 +31,8 @@ export const messages = {
   'consent.policy': 'Política de cookies',
   'consent.accept': 'Aceptar',
   'consent.reject': 'Rechazar',
+  'footer.legalNotice': 'Aviso legal',
+  'footer.privacy': 'Privacidad',
   'footer.cookiePolicy': 'Política de cookies',
   'footer.cookieSettings': 'Configurar cookies',
   'cookiePolicy.title': 'Política de cookies',
