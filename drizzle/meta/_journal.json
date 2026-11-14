@@ -57,6 +57,13 @@
       "when": 1794594816968,
       "tag": "0007_sad_the_captain",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1794681745648,
+      "tag": "0008_name_nospace_search",
+      "breakpoints": true
     }
   ]
 }
