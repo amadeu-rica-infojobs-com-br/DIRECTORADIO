@@ -6,6 +6,7 @@ const entries = {
   daily: 'src/jobs/daily.ts',
   sync: 'src/jobs/sync.ts',
   health: 'src/jobs/health.ts',
+  'forget-email': 'src/jobs/forget-email.ts',
   migrate: 'src/db/migrate.ts',
 }
 

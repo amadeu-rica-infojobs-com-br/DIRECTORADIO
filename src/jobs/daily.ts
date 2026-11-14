@@ -4,6 +4,7 @@ import { fetchAllStations } from '@/catalog/radio-browser/client'
 import { seedTagGenres } from '@/catalog/seed/tag-genres'
 import { syncCatalog } from '@/catalog/sync'
 import { pruneOldPlays } from '@/catalog/plays'
+import { pruneRatings } from '@/ratings/maintenance'
 import { runHealthCheck } from '@/catalog/health'
 import { runPhases, exitCodeFor } from '@/jobs/run-phases'
 
@@ -35,6 +36,7 @@ async function main(): Promise<number> {
           },
         },
         { name: 'prune', run: () => pruneOldPlays(db) },
+        { name: 'ratings-prune', run: () => pruneRatings(db) },
         {
           name: 'health',
           run: async () => {

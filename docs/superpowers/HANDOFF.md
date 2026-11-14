@@ -49,3 +49,15 @@ Registros DNS: `A @ 76.76.21.21`, `CNAME www cname.vercel-dns.com`, `A audio 66.
 - En Windows: PowerShell bloquea `npx.ps1` y `vercel.ps1` (política de ejecución). Usa `cmd /c`, `vercel.cmd` o `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`. Vitest falla con "failed to find the current suite" si la unidad va en minúscula (`c:\`): lánzalo con `cmd /c "cd /d C:\PROJECTES\DIRECTORADIO\DIRECTORADIO && npx vitest run …"`.
 - Docker Desktop no arranca solo: ábrelo antes de `npm test` o `docker compose up -d`.
 - Radio-Browser (`de1`, el único servidor activo) corta conexiones a ratos; `fetchAllStations` reintenta cada página.
+
+## Borrado de los datos de un email (RGPD)
+
+Cuando alguien pida borrar sus datos (escribe a `amadeurm@gmail.com`):
+
+1. Comprobar razonablemente que la petición viene del dueño del email (por ejemplo, responder desde esa misma dirección).
+2. Ejecutarlo contra producción con la conexión directa de `.env.production.local`, o desde una máquina temporal de Fly:
+   ```bash
+   fly machine run <imagen> node dist/forget-email.mjs persona@example.com --rm --restart no --region fra -a directoradio-audio
+   ```
+   En local con la base de datos de producción: `DATABASE_URL_DIRECT=… npm run ratings:forget -- persona@example.com`.
+3. El script borra sus votos (y recalcula la media de esas emisoras), sus intentos y su email verificado, con lo que sus cookies de votante dejan de valer. Imprime cuántas filas ha borrado: guardar esa salida y contestar a la persona en un mes como máximo.
