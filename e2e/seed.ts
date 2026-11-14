@@ -80,7 +80,7 @@ export async function seedE2E(url: string): Promise<void> {
 
   const client = postgres(url, { max: 1, onnotice: () => {} })
   try {
-    await client.unsafe('TRUNCATE stations, tags, station_tags, tag_genres RESTART IDENTITY CASCADE')
+    await client.unsafe('TRUNCATE stations, tags, station_tags, tag_genres, ratings, verified_emails, rating_attempts RESTART IDENTITY CASCADE')
     await drizzle(client, { schema }).insert(stations).values(SEED)
   } finally {
     await client.end()
