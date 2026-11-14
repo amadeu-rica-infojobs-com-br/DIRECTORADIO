@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import Link from 'next/link'
+import { Logo } from '@/components/Logo'
 import { Analytics, ConsentDefaults } from '@/consent/Analytics'
 import { getGtmId } from '@/consent/consent'
 import { CookieBanner } from '@/consent/CookieBanner'
@@ -11,6 +11,9 @@ import { PlayerProvider } from '@/player/PlayerProvider'
 import './globals.css'
 
 export const metadata: Metadata = {
+  // Base de las URL absolutas (og:image, canónicas). Sin ella, Next.js usa localhost o una variable
+  // implícita de Vercel que puede apuntar a *.vercel.app.
+  metadataBase: new URL('https://directoradio.com'),
   title: t('site.title'),
   description: t('site.description'),
 }
@@ -28,9 +31,7 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
         <PlayerProvider>
           <header className="border-b border-neutral-200 dark:border-neutral-800">
             <div className="mx-auto flex w-full max-w-7xl items-center gap-4 px-4 py-4">
-              <Link href="/" className="shrink-0 text-xl font-bold">
-                {t('site.name')}
-              </Link>
+              <Logo />
               <HeaderSearch />
             </div>
           </header>

@@ -25,6 +25,7 @@ test('footer links to the cookie policy', async ({ page }) => {
 
 test('header search finds a station by name', async ({ page }) => {
   await page.goto('/')
+  await expect(page.getByRole('banner').getByRole('link', { name: 'DirectoRadio' })).toHaveAttribute('href', '/')
   const box = page.getByRole('banner').getByRole('searchbox', { name: 'Buscar emisora por nombre' })
   await box.fill('cadena')
   await box.press('Enter')
