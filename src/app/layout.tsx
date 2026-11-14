@@ -11,6 +11,9 @@ import { PlayerProvider } from '@/player/PlayerProvider'
 import './globals.css'
 
 export const metadata: Metadata = {
+  // Base de las URL absolutas (og:image, canónicas). Sin ella, Next.js usa localhost o una variable
+  // implícita de Vercel que puede apuntar a *.vercel.app.
+  metadataBase: new URL('https://directoradio.com'),
   title: t('site.title'),
   description: t('site.description'),
 }
