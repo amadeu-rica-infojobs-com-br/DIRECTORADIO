@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import Link from 'next/link'
+import { Logo } from '@/components/Logo'
 import { Analytics, ConsentDefaults } from '@/consent/Analytics'
 import { getGtmId } from '@/consent/consent'
 import { CookieBanner } from '@/consent/CookieBanner'
@@ -28,9 +28,7 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
         <PlayerProvider>
           <header className="border-b border-neutral-200 dark:border-neutral-800">
             <div className="mx-auto flex w-full max-w-7xl items-center gap-4 px-4 py-4">
-              <Link href="/" className="shrink-0 text-xl font-bold">
-                {t('site.name')}
-              </Link>
+              <Logo />
               <HeaderSearch />
             </div>
           </header>
