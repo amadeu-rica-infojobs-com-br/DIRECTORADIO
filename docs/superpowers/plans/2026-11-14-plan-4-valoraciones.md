@@ -142,7 +142,7 @@
   - `export const RATING_LIMITS = { ipHour: 10, ipDay: 30, emailDay: 5 } as const`
   - `export type SubmitInput = { stationId: unknown; stars: unknown; email: unknown; acceptedPrivacy: unknown; turnstileToken: unknown }`
   - `export type SubmitDeps = { send: SendVerification; verifyCaptcha: (token: unknown) => Promise<boolean>; voterEmail: string | null; ipHash: string | null; siteUrl: string; now?: Date }`
-  - `export type SubmitResult = { status: 'counted' } | { status: 'pending'; email: string } | { status: 'invalid' } | { status: 'captcha' } | { status: 'not-found' } | { status: 'rate-limited'; retryAfter: number } | { status: 'send-failed' }`
+  - `export type SubmitResult = { status: 'counted'; stationSlug: string } | { status: 'pending'; email: string } | { status: 'invalid' } | { status: 'captcha' } | { status: 'not-found' } | { status: 'rate-limited'; retryAfter: number } | { status: 'send-failed' }`
   - `export async function submitRating(db: Db, input: SubmitInput, deps: SubmitDeps): Promise<SubmitResult>`
   - `export async function recomputeStationRating(tx: Tx, stationId: string): Promise<void>` (en `aggregate.ts`): `rating_avg = round(avg(stars), 2)` y `rating_count = count(*)` de los votos `verified`; con 0 votos, `0` y `0`.
 
@@ -234,7 +234,7 @@
       | `rate-limited` | 429 con `Retry-After` |
       | `send-failed` | 502 |
 
-    - en `counted`, `revalidatePath('/emisora/' + slug)` (el slug lo devuelve `submitRating` en la ampliación de `counted`).
+    - en `counted`, `revalidatePath('/emisora/' + result.stationSlug)`.
   - En `yo/route.ts`, `GET`: `{ email: string | null }` con `Cache-Control: no-store`; 404 si está desactivado.
   - En `actions.ts`, `export async function confirmAction(formData: FormData): Promise<ConfirmResult>`:
     - llama a `confirmRating`;
@@ -353,7 +353,7 @@
 - Create:
   - `src/legal/owner.ts`: `export const OWNER = { name: 'PENDIENTE', nif: 'PENDIENTE', address: 'PENDIENTE', email: 'amadeurm@gmail.com', domain: 'directoradio.com' } as const` y `export function ownerMissing(): string[]`, que devuelve los campos que valen `'PENDIENTE'`.
   - `src/app/aviso-legal/page.tsx` y `src/app/privacidad/page.tsx`.
-  - `src/legal/guard.ts`: `export function assertLegalReady(env = process.env): void`. Lanza `Error('Faltan datos del titular en src/legal/owner.ts: …')` si `env.RATINGS_ENABLED === 'true'` y `ownerMissing()` no está vacío.
+  - `src/legal/guard.ts`: `export function assertLegalReady(env = process.env): void`. Lanza `Error('Faltan datos del titular en src/legal/owner.ts: …')` si `env.RATINGS_ENABLED === 'true'`, `env.ALLOW_PENDING_LEGAL !== 'true'` y `ownerMissing()` no está vacío. `ALLOW_PENDING_LEGAL` solo se usa en Playwright (Task 8).
 - Modify:
   - `next.config.ts`: llama a `assertLegalReady()` al cargarse, de modo que `next build` falla;
   - `src/app/politica-de-cookies/page.tsx`: el apartado «Responsable» muestra `OWNER` y se añade la fila `dr_voter` («Recuerda en este navegador el email con el que ya verificaste una valoración», 12 meses);
@@ -388,7 +388,8 @@
   - **`ownerMissing()`** devuelve `['name', 'nif', 'address']`.
   - **`assertLegalReady`:**
     - con `{ RATINGS_ENABLED: 'true' }` lanza un error con «name, nif, address»;
-    - con `{}` no lanza.
+    - con `{}` no lanza;
+    - con `{ RATINGS_ENABLED: 'true', ALLOW_PENDING_LEGAL: 'true' }` no lanza.
   - **E2E:** el pie enlaza a `/aviso-legal` y `/privacidad`, y las dos páginas responden 200.
 - [ ] **Step 2: Run to verify they fail.** Run: `npx vitest run tests/legal`. Expected: FAIL.
 - [ ] **Step 3: Implement.**
@@ -405,7 +406,7 @@
     - `SITE_URL: 'http://localhost:3100'`;
     - y sin `BREVO_API_KEY`.
 
-    El guardia de `PENDIENTE` impide `RATINGS_ENABLED=true` en el build. Para e2e se añade `ALLOW_PENDING_LEGAL=true`, que solo respeta `assertLegalReady` y que solo se usa en Playwright.
+    Además, `ALLOW_PENDING_LEGAL: 'true'` (Task 7), porque el guardia de `PENDIENTE` impediría el build con `RATINGS_ENABLED=true`.
   - `e2e/ratings.spec.ts`: lee el enlace de verificación del log del servidor.
 
     Playwright no expone el stdout del `webServer`, así que en desarrollo (sin `BREVO_API_KEY` y fuera de producción real) el enlace también se guarda en `.next/cache/last-verification-url.txt`, y el test lo lee (decisión del plan).
