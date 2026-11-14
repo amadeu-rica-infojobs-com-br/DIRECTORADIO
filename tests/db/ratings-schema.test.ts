@@ -39,7 +39,10 @@ describe('ratings schema', () => {
   })
 
   it.each([0, 6])('rejects %i stars', async (stars) => {
-    await expect(ctx.db.insert(ratings).values(vote({ stars }))).rejects.toThrow(/ratings_stars_check/)
+    // Drizzle envuelve el error de Postgres: la restricción violada está en cause.
+    await expect(ctx.db.insert(ratings).values(vote({ stars }))).rejects.toMatchObject({
+      cause: { constraint_name: 'ratings_stars_check' },
+    })
   })
 
   it('allows one pending and one verified vote per email and station', async () => {
