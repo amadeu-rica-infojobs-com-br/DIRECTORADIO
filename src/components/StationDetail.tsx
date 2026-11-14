@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import type { StationCardData, StationDetailData } from '@/catalog/queries'
 import { AudioPlayer } from '@/components/AudioPlayer'
+import { RatingForm } from '@/components/ratings/RatingForm'
 import { Stars } from '@/components/Stars'
 import { StationGrid } from '@/components/StationGrid'
 import { StationLogo } from '@/components/StationLogo'
@@ -19,7 +20,16 @@ function isHttpUrl(url: string | null): url is string {
   }
 }
 
-export function StationDetail({ station, similar }: { station: StationDetailData; similar: StationCardData[] }) {
+export function StationDetail({
+  station,
+  similar,
+  ratingsEnabled = false,
+}: {
+  station: StationDetailData
+  similar: StationCardData[]
+  /** Interruptor RATINGS_ENABLED (spec plan 4 §5.6). */
+  ratingsEnabled?: boolean
+}) {
   const country = countryName(station.countryCode)
   const flag = flagEmoji(station.countryCode)
   // Nombres en español a partir de los códigos ISO; sin códigos, los nombres libres de Radio-Browser.
@@ -88,6 +98,8 @@ export function StationDetail({ station, similar }: { station: StationDetailData
           streamUrl: station.streamUrl,
         }}
       />
+
+      {ratingsEnabled && <RatingForm stationId={station.id} stationName={station.name} />}
 
       {isHttpUrl(station.homepageUrl) && (
         <a
