@@ -15,7 +15,9 @@ export default defineConfig({
   use: { baseURL: `http://localhost:${PORT}` },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   webServer: {
-    command: `npx tsx src/db/migrate.ts && npm run build && npm run start -- -p ${PORT}`,
+    // Se borra la caché de datos de Next (unstable_cache: opciones de filtros): sobrevive entre builds y
+    // guardaría lo que hubiera en la BD de test de una ejecución anterior.
+    command: `node -e "require('fs').rmSync('.next/cache/fetch-cache',{recursive:true,force:true})" && npx tsx src/db/migrate.ts && npm run build && npm run start -- -p ${PORT}`,
     url: `http://localhost:${PORT}`,
     reuseExistingServer: false,
     timeout: 300_000,

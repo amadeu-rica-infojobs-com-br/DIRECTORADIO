@@ -1,20 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import { ActiveFilters } from '@/components/search/ActiveFilters'
 import { NoResults } from '@/components/search/NoResults'
-
-describe('ActiveFilters', () => {
-  it('shows one removable chip per criterion', () => {
-    render(<ActiveFilters criteria={{ q: 'ser', country: 'PT' }} />)
-    expect(screen.getByRole('link', { name: 'Quitar «País: Portugal»' })).toHaveAttribute('href', '/buscar?q=ser')
-    expect(screen.getByRole('link', { name: 'Quitar «Texto: ser»' })).toHaveAttribute('href', '/buscar?pais=PT')
-  })
-
-  it('renders nothing without criteria', () => {
-    const { container } = render(<ActiveFilters criteria={{}} />)
-    expect(container).toBeEmptyDOMElement()
-  })
-})
 
 describe('NoResults', () => {
   it('explains and offers to remove each filter or see everything', () => {

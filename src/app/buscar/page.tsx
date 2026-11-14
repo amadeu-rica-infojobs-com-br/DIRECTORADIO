@@ -3,9 +3,8 @@ import { getCachedFilterOptions } from '@/catalog/filter-options-cached'
 import { searchStations } from '@/catalog/search'
 import { parseSearchParams, searchHref, searchTitle } from '@/catalog/search-params'
 import { Pagination } from '@/components/Pagination'
-import { ActiveFilters } from '@/components/search/ActiveFilters'
 import { NoResults } from '@/components/search/NoResults'
-import { SearchForm } from '@/components/search/SearchForm'
+import { FilterBar } from '@/components/search/FilterBar'
 import { StationGrid } from '@/components/StationGrid'
 import { getDb } from '@/db/client'
 import { t, tn } from '@/i18n'
@@ -30,8 +29,7 @@ export default async function SearchPage({ searchParams }: PageProps<'/buscar'>)
   return (
     <>
       <h1 className="mb-6 text-2xl font-bold">{searchTitle(criteria)}</h1>
-      <SearchForm criteria={criteria} options={options} />
-      <ActiveFilters criteria={criteria} />
+      <FilterBar criteria={criteria} options={options} />
       {result.total === 0 ? (
         <NoResults criteria={criteria} />
       ) : (

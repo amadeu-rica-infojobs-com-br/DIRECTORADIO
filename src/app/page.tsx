@@ -1,7 +1,7 @@
 import { getCachedFilterOptions } from '@/catalog/filter-options-cached'
 import { getHomeStations } from '@/catalog/queries'
 import { Pagination } from '@/components/Pagination'
-import { SearchForm } from '@/components/search/SearchForm'
+import { FilterBar } from '@/components/search/FilterBar'
 import { StationGrid } from '@/components/StationGrid'
 import { getDb } from '@/db/client'
 import { t } from '@/i18n'
@@ -25,7 +25,7 @@ export default async function HomePage({ searchParams }: PageProps<'/'>) {
 
   return (
     <>
-      <SearchForm criteria={{}} options={options} />
+      <FilterBar criteria={{}} options={options} />
       <h1 className="mb-6 text-2xl font-bold">{t('home.title')}</h1>
       <StationGrid stations={items} />
       <Pagination page={page} pageCount={pageCount} />
