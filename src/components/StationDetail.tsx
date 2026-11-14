@@ -1,11 +1,13 @@
 import Link from 'next/link'
-import type { StationDetailData } from '@/catalog/queries'
+import type { StationCardData, StationDetailData } from '@/catalog/queries'
 import { AudioPlayer } from '@/components/AudioPlayer'
 import { Stars } from '@/components/Stars'
+import { StationGrid } from '@/components/StationGrid'
 import { StationLogo } from '@/components/StationLogo'
 import { t, tn } from '@/i18n'
 import { countryName, flagEmoji } from '@/lib/country'
 import { genreLabel } from '@/lib/genres'
+import { languageName } from '@/lib/language'
 
 function isHttpUrl(url: string | null): url is string {
   if (!url) return false
@@ -17,9 +19,12 @@ function isHttpUrl(url: string | null): url is string {
   }
 }
 
-export function StationDetail({ station }: { station: StationDetailData }) {
+export function StationDetail({ station, similar }: { station: StationDetailData; similar: StationCardData[] }) {
   const country = countryName(station.countryCode)
   const flag = flagEmoji(station.countryCode)
+  // Nombres en español a partir de los códigos ISO; sin códigos, los nombres libres de Radio-Browser.
+  const namedCodes = station.languageCodes.map(languageName).filter(Boolean)
+  const languageList = namedCodes.length > 0 ? namedCodes : station.languages
   return (
     <article className="flex flex-col gap-6">
       <Link href="/" className="text-sm text-neutral-500 hover:underline">
@@ -38,9 +43,9 @@ export function StationDetail({ station }: { station: StationDetailData }) {
             )}
             {genreLabel(station.genre)}
           </p>
-          {station.languages.length > 0 && (
+          {languageList.length > 0 && (
             <p className="text-sm text-neutral-500">
-              {t('station.languages')}: {station.languages.join(', ')}
+              {t('station.languages')}: {languageList.join(', ')}
             </p>
           )}
         </div>
@@ -96,6 +101,13 @@ export function StationDetail({ station }: { station: StationDetailData }) {
       )}
 
       {station.description && <p className="max-w-prose">{station.description}</p>}
+
+      {similar.length > 0 && (
+        <section className="mt-6 flex flex-col gap-4">
+          <h2 className="text-xl font-semibold">{t('station.similar')}</h2>
+          <StationGrid stations={similar} />
+        </section>
+      )}
     </article>
   )
 }

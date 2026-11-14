@@ -153,6 +153,7 @@ export async function syncCatalog(db: Db, rbStations: RbStation[]): Promise<Sync
             row.homepageUrl !== m.homepageUrl ||
             row.countryCode !== m.countryCode ||
             !sameSet(row.languages, m.languages) ||
+            !sameSet(row.languageCodes, m.languageCodes) ||
             (row.rbClickCount ?? 0) !== m.rbClickCount ||
             (!manual.includes('logoUrl') && row.logoUrl !== m.logoUrl) ||
             (!manual.includes('genre') && row.genre !== genre)
@@ -165,6 +166,7 @@ export async function syncCatalog(db: Db, rbStations: RbStation[]): Promise<Sync
               homepageUrl: m.homepageUrl,
               countryCode: m.countryCode,
               languages: m.languages,
+              languageCodes: m.languageCodes,
               rbClickCount: m.rbClickCount,
               updatedAt: sql`now()`,
               ...(reactivate ? { status: 'activa' as const, deactivatedBySync: false } : {}),
@@ -191,6 +193,7 @@ export async function syncCatalog(db: Db, rbStations: RbStation[]): Promise<Sync
             logoUrl: m.logoUrl,
             countryCode: m.countryCode,
             languages: m.languages,
+            languageCodes: m.languageCodes,
             genre,
             status: 'activa',
             source: SOURCE,

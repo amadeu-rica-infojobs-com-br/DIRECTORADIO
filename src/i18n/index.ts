@@ -11,7 +11,7 @@ export function t(key: MessageKey, vars?: Record<string, string | number>): stri
 }
 
 export function tn(
-  base: 'station.plays' | 'station.ratings',
+  base: 'station.plays' | 'station.ratings' | 'search.results',
   count: number,
   vars?: Record<string, string | number>,
 ): string {

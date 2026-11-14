@@ -1,13 +1,20 @@
 # Traspaso entre sesiones
 
-Última actualización: 2026-11-07. Léelo al empezar una sesión nueva y actualízalo al terminar.
+Última actualización: 2026-11-13. Léelo al empezar una sesión nueva y actualízalo al terminar.
 
 ## Dónde estamos
 
-- Hechos: planes 1, 2 y 2b (despliegue). Producción funcionando y comprobada (P9 del [plan 2b](plans/2026-11-06-plan-2b-despliegue.md)).
-- PR #5 (`fix-fly-region` → `main`): solo documentación (marca P1–P9 y añade este fichero). Fusionarlo antes de empezar.
-- **Siguiente: plan 3.** Embeddings (pgvector), descripciones con IA, buscador con IA y emisoras similares. Todavía no está escrito: hay que redactarlo a partir de la [spec v1](specs/2026-11-04-directoradio-v1-design.md), §6.5 y §6.9. Los planes 4 (valoraciones y textos legales) y 5 (páginas de género y país, sitemap, schema.org) vienen después.
-- Forma de trabajar: skills de **superpowers** (brainstorming → writing-plans → subagent-driven-development), con planes en `docs/superpowers/plans/`.
+- Hechos: planes 1, 2 y 2b (despliegue), reintentos de Radio-Browser (PR #6) y analítica con GTM y consentimiento de cookies (PR #7, [diseño](specs/2026-11-13-analitica-consentimiento-design.md)).
+- **Plan 3, rama `plan-3-buscador`:** buscador por campos (`/buscar`), 4 géneros nuevos, idioma ISO y emisoras similares, **sin IA** ([diseño](specs/2026-11-13-buscador-por-campos-design.md), [plan](plans/2026-11-13-plan-3-buscador.md)). El responsable decidió no usar servicios de IA por ahora: el buscador con IA, la voz, los embeddings y las descripciones quedan aplazados.
+- **Al desplegar el plan 3** (tarea 7, paso 4 del plan). **El orden importa:** Vercel publica cada fusión en `main` al momento, y el código nuevo consulta `language_codes` y `f_unaccent`. Si la migración llega después, la portada, `/buscar` y las fichas no cacheadas dan 500. Las migraciones son aditivas y el código actual funciona con ellas, así que se aplican primero:
+  1. **Antes de fusionar**, desde la rama `plan-3-buscador`, migrar Neon por la conexión directa: `DATABASE_URL_DIRECT` de `.env.production.local` y `npm run db:migrate` (o una máquina temporal de Fly con una imagen construida desde la rama, si la red bloquea el 5432). Crea las extensiones `pg_trgm` y `unaccent`, los 4 valores del enum y la columna `language_codes`.
+  2. Fusionar el PR. Vercel publica la web y GitHub Actions publica la imagen nueva en Fly.
+  3. `fly machine run <imagen> node dist/sync.mjs --rm --restart no --region fra --vm-memory 1024 -a directoradio-audio`, para rellenar los códigos de idioma y recalcular géneros. Hasta entonces, el desplegable de idioma sale vacío y las opciones se guardan en caché una hora: si hace falta, volver a desplegar en Vercel después de la sincronización.
+  4. `fly machine update 8d99350be19498 --image <imagen> -a directoradio-audio`, para que la tarea diaria tenga reintentos y los cambios del plan 3.
+  5. Medir en Neon con `EXPLAIN ANALYZE` una búsqueda y una consulta de similares (objetivo: menos de 300 ms).
+- **Pendientes del responsable** (analítica, PR #7): elegir en GTM entre Consent Mode básico o avanzado, y completar el apartado "Responsable" de la política de cookies cuando exista el aviso legal.
+- Después: plan 4 (valoraciones y textos legales) y plan 5 (páginas de género y país, sitemap, schema.org).
+- Forma de trabajar: skills de **superpowers** (brainstorming → writing-plans → executing-plans), con diseños en `docs/superpowers/specs/` y planes en `docs/superpowers/plans/`. Registro de avance en `.superpowers/sdd/<plan>/progress.md` (no está en git).
 
 ## Preparar la máquina nueva
 
@@ -39,3 +46,6 @@ Registros DNS: `A @ 76.76.21.21`, `CNAME www cname.vercel-dns.com`, `A audio 66.
 - Los `proxy_error` 404 `not_found` que aparecen en los logs son escáneres de Internet. No son un fallo.
 - La prueba del límite de reproducciones sumó 30 reproducciones ficticias a Cadena 100 (`7cadf477-…`).
 - En la red de la oficina (Netskope), los streams proxiados, `fly ssh` y el puerto 5432 no funcionan, y curl necesita `--ssl-no-revoke`. En otra red, nada de esto debería hacer falta.
+- En Windows: PowerShell bloquea `npx.ps1` y `vercel.ps1` (política de ejecución). Usa `cmd /c`, `vercel.cmd` o `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`. Vitest falla con "failed to find the current suite" si la unidad va en minúscula (`c:\`): lánzalo con `cmd /c "cd /d C:\PROJECTES\DIRECTORADIO\DIRECTORADIO && npx vitest run …"`.
+- Docker Desktop no arranca solo: ábrelo antes de `npm test` o `docker compose up -d`.
+- Radio-Browser (`de1`, el único servidor activo) corta conexiones a ratos; `fetchAllStations` reintenta cada página.

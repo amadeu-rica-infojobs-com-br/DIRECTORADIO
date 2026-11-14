@@ -8,6 +8,7 @@ export type RbStation = {
   tags: string
   countrycode: string
   language: string
+  languagecodes?: string
   clickcount: number
   lastcheckok: number
 }

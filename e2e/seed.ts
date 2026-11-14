@@ -12,14 +12,27 @@ export const STREAM_URLS = {
   radioFr: 'https://e2e.example/radio-fr',
   radioHttp: 'http://e2e.example/radio-http',
   radioOff: 'https://e2e.example/radio-off',
+  radioPt: 'https://e2e.example/radio-pt',
 } as const
 
 const SEED: Seed[] = [
   {
     ...base,
+    slug: 'radio-pt',
+    name: 'Rádio PT',
+    countryCode: 'PT',
+    languageCodes: ['pt'],
+    genre: 'latina',
+    streamUrl: STREAM_URLS.radioPt,
+    externalId: 'e2e-radio-pt',
+    rbClickCount: 50,
+  },
+  {
+    ...base,
     slug: 'cadena-ser',
     name: 'Cadena SER',
     countryCode: 'ES',
+    languageCodes: ['es'],
     genre: 'generalista',
     streamUrl: STREAM_URLS.cadenaSer,
     externalId: 'e2e-cadena-ser',
@@ -30,6 +43,7 @@ const SEED: Seed[] = [
     slug: 'radio-fr',
     name: 'Radio FR',
     countryCode: 'FR',
+    languageCodes: ['fr'],
     genre: 'pop',
     streamUrl: STREAM_URLS.radioFr,
     externalId: 'e2e-radio-fr',

@@ -9,6 +9,7 @@ export type MappedStation = {
   logoUrl: string | null
   countryCode: string | null
   languages: string[]
+  languageCodes: string[]
   tags: string[]
   rbClickCount: number
 }
@@ -33,7 +34,16 @@ export function mapRbStation(rb: RbStation): MappedStation | null {
     logoUrl: orNull(rb.favicon),
     countryCode: orNull(rb.countrycode)?.toUpperCase() ?? null,
     languages: normalizeTags(rb.language),
+    languageCodes: normalizeLanguageCodes(rb.languagecodes),
     tags: normalizeTags(rb.tags),
     rbClickCount: rb.clickcount ?? 0,
   }
+}
+
+const LANGUAGE_CODE_RE = /^[a-z]{2,3}$/
+
+/** `languagecodes` de Radio-Browser ("es,ca") → códigos ISO 639 en minúsculas, sin duplicados. */
+export function normalizeLanguageCodes(raw: string | undefined): string[] {
+  const codes = (raw ?? '').split(',').map((c) => c.trim().toLowerCase())
+  return [...new Set(codes.filter((c) => LANGUAGE_CODE_RE.test(c)))]
 }

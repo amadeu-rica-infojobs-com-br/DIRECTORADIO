@@ -20,11 +20,10 @@ La captación de tráfico depende en gran medida de Google ("radio fado online",
 ### Incluido en v1
 - Catálogo propio en base de datos, importado de Radio-Browser y otras fuentes y sincronizado periódicamente.
 - Portada con un listado de emisoras ordenado por las más escuchadas.
-- Buscador con IA, por texto y por voz.
+- Buscador por campos: búsqueda por nombre y filtros por país, idioma y género (cambio del 2026-11-13: sin IA; ver [diseño del buscador por campos](2026-11-13-buscador-por-campos-design.md)).
 - Ficha de cada emisora con sus datos y el reproductor del streaming.
 - Valoración de 1 a 5 estrellas, que requiere un email verificado.
 - Contador de reproducciones.
-- Descripciones de las emisoras generadas con IA.
 - Diseño adaptable a móvil, tablet y escritorio.
 - Política de privacidad, aviso legal y texto de aceptación del voto.
 
@@ -110,7 +109,7 @@ Campos de la especificación original:
 
 Se añaden:
 - **Tags**: las etiquetas de Radio-Browser, normalizadas (en minúsculas, sin espacios sobrantes, sin duplicados). Se guardan en una tabla aparte, en relación de muchos a muchos. Sirven para la búsqueda y para asignar el género.
-- **Género**: es la lista cerrada de la especificación: Pop, Electrónica, Rock, Jazz, Clásica, Variada, Noticias, Deportes y Generalista. Se asigna desde los tags mediante una **tabla de correspondencias tag → género** que se mantiene en la base de datos. Cada emisora tiene **un género principal [propuesta]**; el detalle (por ejemplo "fado") queda en los tags. Si ningún tag tiene correspondencia, el género es "Variada" **[propuesta]**.
+- **Género**: es una lista cerrada: Pop, Electrónica, Rock, Jazz, Clásica, Variada, Noticias, Deportes y Generalista, de la especificación original, más Religiosa, Latina, Country y folk, y Hip hop, añadidos el 2026-11-13 ([diseño del buscador por campos](2026-11-13-buscador-por-campos-design.md)). Se asigna desde los tags mediante una **tabla de correspondencias tag → género** que se mantiene en la base de datos. Cada emisora tiene **un género principal [propuesta]**; el detalle (por ejemplo "fado") queda en los tags. Si ningún tag tiene correspondencia, el género es "Variada" **[propuesta]**.
 - **Origen y referencia externa**: la fuente (radio-browser, manual…) y el identificador en esa fuente (el `stationuuid` en el caso de Radio-Browser), para poder sincronizar.
 - **Descripción generada**: un indicador de que la descripción la escribió la IA, para poder revisarla después.
 - **Salud del stream [propuesta]**: fecha de la última comprobación, si funcionó y número de fallos seguidos. Es un dato distinto de `Status`: `Status` es una decisión editorial, la salud es automática.
@@ -139,6 +138,8 @@ Se añaden:
 - Solo aparecen emisoras activas y que funcionan.
 
 ### 6.5 Buscador con IA
+
+> **Sustituido el 2026-11-13** por un buscador por campos sin IA: [diseño del buscador por campos](2026-11-13-buscador-por-campos-design.md). Lo que sigue queda como referencia para una fase posterior.
 - **Entrada:** texto libre o voz.
 - **Cómo funciona:**
   1. Un modelo de lenguaje convierte la frase en filtros estructurados (país, idioma, género, tags y, si existe el dato, ciudad o región) más un texto de intención.
@@ -163,7 +164,7 @@ Boceto aprobado. Muestra:
 - botón **Escuchar en directo** y enlace a la web oficial
 - descripción
 - bloque de valoración
-- **Emisoras similares [propuesta]**: por parecido de significado y por género
+- **Emisoras similares**: sin IA, por género, tags compartidos, país e idioma ([diseño del buscador por campos](2026-11-13-buscador-por-campos-design.md), §5.6)
 
 ### 6.7 Reproductor
 - **Mini-reproductor fijo en la parte inferior** de todas las páginas **[propuesta, mostrado en el boceto]**. La radio sigue sonando al navegar entre la portada, los resultados y otras fichas. Hace falta que la navegación del lado del cliente no reinicie el audio.
@@ -191,6 +192,8 @@ Boceto aprobado. Muestra:
   - borrado de los datos de un email a petición, hecho a mano por la persona técnica en v1
 
 ### 6.9 Descripciones generadas con IA
+
+> **Aplazado el 2026-11-13**: por ahora la web no usa servicios de IA y la ficha no muestra descripción ([diseño del buscador por campos](2026-11-13-buscador-por-campos-design.md)).
 - Se generan **para todo el catálogo**, a partir del nombre, el país, el idioma, los tags y el género.
 - Opcionalmente se usa la meta descripción de la web de la emisora, si se puede obtener **[propuesta]**.
 - Están escritas en español, son breves y **no deben inventar datos concretos** (frecuencias, presentadores, horarios).

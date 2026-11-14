@@ -1,0 +1,1 @@
+CREATE INDEX "station_tags_tag_id_idx" ON "station_tags" USING btree ("tag_id");
