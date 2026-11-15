@@ -4,15 +4,17 @@
  * RATINGS_ENABLED=true y queda alguno (src/legal/guard.ts).
  */
 export const OWNER = {
-  name: 'PENDIENTE',
-  nif: 'PENDIENTE',
-  address: 'PENDIENTE',
+  name: 'Amadeu Rica',
+  nif: '46587808C',
+  address: 'Calle Goya, 50, Vilanova del Camí (Barcelona)',
   email: 'amadeurm@gmail.com',
   domain: 'directoradio.com',
 } as const
 
 const PENDING = 'PENDIENTE'
 
-export function ownerMissing(): string[] {
-  return (['name', 'nif', 'address'] as const).filter((key) => OWNER[key] === PENDING)
+export type Owner = { name: string; nif: string; address: string }
+
+export function ownerMissing(owner: Owner = OWNER): string[] {
+  return (['name', 'nif', 'address'] as const).filter((key) => owner[key] === PENDING)
 }

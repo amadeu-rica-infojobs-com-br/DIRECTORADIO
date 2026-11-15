@@ -46,13 +46,19 @@ describe('legal pages', () => {
 })
 
 describe('owner data guard', () => {
+  it('has the owner data filled in', () => {
+    expect(ownerMissing()).toEqual([])
+  })
+
   it('lists the missing owner fields', () => {
-    expect(ownerMissing()).toEqual(['name', 'nif', 'address'])
+    expect(ownerMissing({ name: 'PENDIENTE', nif: 'PENDIENTE', address: 'Calle X' })).toEqual(['name', 'nif'])
   })
 
   it('refuses to enable ratings with missing owner data unless explicitly allowed', () => {
-    expect(() => assertLegalReady({ RATINGS_ENABLED: 'true' })).toThrow(/name, nif, address/)
-    expect(() => assertLegalReady({})).not.toThrow()
-    expect(() => assertLegalReady({ RATINGS_ENABLED: 'true', ALLOW_PENDING_LEGAL: 'true' })).not.toThrow()
+    const missing = ['name', 'nif', 'address']
+    expect(() => assertLegalReady({ RATINGS_ENABLED: 'true' }, missing)).toThrow(/name, nif, address/)
+    expect(() => assertLegalReady({}, missing)).not.toThrow()
+    expect(() => assertLegalReady({ RATINGS_ENABLED: 'true', ALLOW_PENDING_LEGAL: 'true' }, missing)).not.toThrow()
+    expect(() => assertLegalReady({ RATINGS_ENABLED: 'true' }, [])).not.toThrow()
   })
 })

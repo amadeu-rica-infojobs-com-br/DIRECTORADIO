@@ -68,7 +68,7 @@ Cuando alguien pida borrar sus datos (escribe a `amadeurm@gmail.com`):
 
 Las valoraciones van apagadas (`RATINGS_ENABLED` sin definir) hasta completar esta lista. Las páginas legales se publican siempre.
 
-1. **Titular:** rellenar `name`, `nif` y `address` en `src/legal/owner.ts`. Si `RATINGS_ENABLED=true` y queda algún `PENDIENTE`, el build de producción falla.
+1. **Titular:** hecho (`src/legal/owner.ts`: Amadeu Rica). Si algún dato vuelve a quedar en `PENDIENTE` con `RATINGS_ENABLED=true`, el build de producción falla.
 2. **Revisión legal:** que un abogado revise `/aviso-legal`, `/privacidad`, `/politica-de-cookies` y el texto junto a la casilla del voto.
 3. **Brevo:**
    - crear la cuenta (plan gratuito) y, en *Senders, Domains & Dedicated IPs → Domains*, autenticar `directoradio.com`;
