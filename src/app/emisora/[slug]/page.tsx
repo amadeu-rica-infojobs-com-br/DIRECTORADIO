@@ -3,6 +3,7 @@ import type { Metadata } from 'next'
 import { cache } from 'react'
 import { getStationBySlug } from '@/catalog/queries'
 import { getSimilarStations } from '@/catalog/similar'
+import { ratingsEnabled } from '@/ratings/config'
 import { StationDetail } from '@/components/StationDetail'
 import { getDb } from '@/db/client'
 import { t } from '@/i18n'
@@ -26,5 +27,5 @@ export default async function StationPage({ params }: PageProps<'/emisora/[slug]
   const station = await loadStation(slug)
   if (!station) notFound()
   const similar = await getSimilarStations(getDb(), station.id)
-  return <StationDetail station={station} similar={similar} />
+  return <StationDetail station={station} similar={similar} ratingsEnabled={ratingsEnabled()} />
 }

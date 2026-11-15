@@ -49,3 +49,42 @@ Registros DNS: `A @ 76.76.21.21`, `CNAME www cname.vercel-dns.com`, `A audio 66.
 - En Windows: PowerShell bloquea `npx.ps1` y `vercel.ps1` (política de ejecución). Usa `cmd /c`, `vercel.cmd` o `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`. Vitest falla con "failed to find the current suite" si la unidad va en minúscula (`c:\`): lánzalo con `cmd /c "cd /d C:\PROJECTES\DIRECTORADIO\DIRECTORADIO && npx vitest run …"`.
 - Docker Desktop no arranca solo: ábrelo antes de `npm test` o `docker compose up -d`.
 - Radio-Browser (`de1`, el único servidor activo) corta conexiones a ratos; `fetchAllStations` reintenta cada página.
+
+## Borrado de los datos de un email (RGPD)
+
+Cuando alguien pida borrar sus datos (escribe a `amadeurm@gmail.com`):
+
+1. Comprobar razonablemente que la petición viene del dueño del email (por ejemplo, responder desde esa misma dirección).
+2. Ejecutarlo contra producción con la conexión directa de `.env.production.local`, o desde una máquina temporal de Fly:
+   ```bash
+   fly machine run <imagen> node dist/forget-email.mjs persona@example.com --rm --restart no --region fra -a directoradio-audio
+   ```
+   En local con la base de datos de producción: `DATABASE_URL_DIRECT=… npm run ratings:forget -- persona@example.com`.
+3. El script borra sus votos (y recalcula la media de esas emisoras), sus intentos y su email verificado, con lo que sus cookies de votante dejan de valer. Imprime cuántas filas ha borrado: guardar esa salida.
+4. En Brevo: borrar el contacto y los registros de envío de ese email (*Contacts* y *Transactional → Logs*), como dice la política de privacidad.
+5. Contestar a la persona en un mes como máximo.
+
+## Activar las valoraciones (plan 4)
+
+Las valoraciones van apagadas (`RATINGS_ENABLED` sin definir) hasta completar esta lista. Las páginas legales se publican siempre.
+
+1. **Titular:** hecho (`src/legal/owner.ts`: Amadeu Rica). Si algún dato vuelve a quedar en `PENDIENTE` con `RATINGS_ENABLED=true`, el build de producción falla.
+2. **Revisión legal:** que un abogado revise `/aviso-legal`, `/privacidad`, `/politica-de-cookies` y el texto junto a la casilla del voto.
+3. **Brevo:**
+   - crear la cuenta (plan gratuito) y, en *Senders, Domains & Dedicated IPs → Domains*, autenticar `directoradio.com`;
+   - dar de alta en Cloudflare los registros DNS que indique Brevo (código de verificación, DKIM y DMARC; SPF si lo pide), **todos en «DNS only»**;
+   - crear el remitente `no-responder@directoradio.com`;
+   - generar una clave de API (*SMTP & API → API Keys*).
+4. **Turnstile:** en Cloudflare, *Turnstile → Add widget*:
+   - dominio `directoradio.com`;
+   - modo *Invisible* (o *Managed*);
+   - anotar la clave del sitio y la secreta.
+5. **Variables en Vercel (Production):**
+   - `RATINGS_SECRET`: 32 bytes aleatorios en hexadecimal; se generan con `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`. Si se cambia, se invalidan las cookies de votante;
+   - `BREVO_API_KEY`, `NEXT_PUBLIC_TURNSTILE_SITE_KEY` y `TURNSTILE_SECRET_KEY`;
+   - `SITE_URL=https://directoradio.com`;
+   - `PLAYS_IP_SALT` ya existe en Production; sin ella, las valoraciones se quedan apagadas aunque `RATINGS_ENABLED=true`, porque no habría límites por IP. Lo mismo sin `RATINGS_SECRET`. Sin `BREVO_API_KEY`, cada envío responde 502;
+   - por último, `RATINGS_ENABLED=true`.
+
+   Las `NEXT_PUBLIC_*` se fijan al compilar: volver a desplegar después de añadirlas.
+6. **Comprobación:** votar una emisora con un email propio, confirmar el enlace del email y ver la media en la ficha.

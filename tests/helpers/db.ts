@@ -26,7 +26,7 @@ export async function createTestDb(): Promise<{
     db,
     async reset() {
       await client.unsafe(
-        'TRUNCATE stations, tags, station_tags, tag_genres, plays RESTART IDENTITY CASCADE',
+        'TRUNCATE stations, tags, station_tags, tag_genres, plays, ratings, verified_emails, rating_attempts RESTART IDENTITY CASCADE',
       )
     },
     async close() {

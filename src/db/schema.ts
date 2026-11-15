@@ -1,6 +1,7 @@
 import {
   bigserial,
   boolean,
+  check,
   index,
   integer,
   numeric,
@@ -111,5 +112,59 @@ export const plays = pgTable(
   ],
 )
 
+export const ratingStatusEnum = pgEnum('rating_status', ['pending', 'verified'])
+
+/** Emails que han verificado al menos una valoración (spec plan 4 §5.1). */
+export const verifiedEmails = pgTable('verified_emails', {
+  email: text('email').primaryKey(),
+  // No cambia mientras exista la fila: la cookie de votante tiene que ser posterior (§5.3).
+  firstVerifiedAt: timestamp('first_verified_at', { withTimezone: true }).notNull(),
+  verifiedAt: timestamp('verified_at', { withTimezone: true }).notNull(),
+  privacyAcceptedAt: timestamp('privacy_accepted_at', { withTimezone: true }).notNull(),
+})
+
+export const ratings = pgTable(
+  'ratings',
+  {
+    id: bigserial('id', { mode: 'number' }).primaryKey(),
+    stationId: uuid('station_id')
+      .notNull()
+      .references(() => stations.id, { onDelete: 'cascade' }),
+    email: text('email').notNull(),
+    stars: integer('stars').notNull(),
+    status: ratingStatusEnum('status').notNull(),
+    tokenHash: text('token_hash'),
+    tokenExpiresAt: timestamp('token_expires_at', { withTimezone: true }),
+    privacyAcceptedAt: timestamp('privacy_accepted_at', { withTimezone: true }).notNull(),
+    ipHash: text('ip_hash'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    check('ratings_stars_check', sql`${t.stars} between 1 and 5`),
+    uniqueIndex('ratings_station_email_status_idx').on(t.stationId, t.email, t.status),
+    index('ratings_token_hash_idx').on(t.tokenHash),
+    index('ratings_email_idx').on(t.email),
+  ],
+)
+
+/** Registro de intentos para los límites por IP y por email (§5.4). Se borra a las 48 horas. */
+export const ratingAttempts = pgTable(
+  'rating_attempts',
+  {
+    id: bigserial('id', { mode: 'number' }).primaryKey(),
+    ipHash: text('ip_hash'),
+    email: text('email').notNull(),
+    sentEmail: boolean('sent_email').notNull().default(false),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('rating_attempts_ip_created_idx').on(t.ipHash, t.createdAt),
+    index('rating_attempts_email_created_idx').on(t.email, t.createdAt),
+  ],
+)
+
+export type Rating = typeof ratings.$inferSelect
+export type NewRating = typeof ratings.$inferInsert
 export type Station = typeof stations.$inferSelect
 export type NewStation = typeof stations.$inferInsert

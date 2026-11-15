@@ -23,10 +23,10 @@ const BASE: StationDetailData = {
   isHealthHidden: false,
 }
 
-function renderDetail(station: StationDetailData, similar: StationCardData[] = []) {
+function renderDetail(station: StationDetailData, similar: StationCardData[] = [], ratingsEnabled = false) {
   return render(
     <PlayerProvider>
-      <StationDetail station={station} similar={similar} />
+      <StationDetail station={station} similar={similar} ratingsEnabled={ratingsEnabled} />
     </PlayerProvider>,
   )
 }
@@ -63,5 +63,17 @@ describe('StationDetail languages', () => {
   it('falls back to free-text names without codes', () => {
     renderDetail({ ...BASE, languageCodes: [] })
     expect(screen.getByText('Idiomas: spanish')).toBeInTheDocument()
+  })
+})
+
+describe('StationDetail ratings block', () => {
+  it('is hidden while ratings are disabled', () => {
+    renderDetail(BASE)
+    expect(screen.queryByRole('radiogroup', { name: 'Valora esta emisora' })).not.toBeInTheDocument()
+  })
+
+  it('is shown when ratings are enabled', () => {
+    renderDetail(BASE, [], true)
+    expect(screen.getByRole('radiogroup', { name: 'Valora esta emisora' })).toBeInTheDocument()
   })
 })

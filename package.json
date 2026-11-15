@@ -19,7 +19,8 @@
     "job:health": "tsx src/jobs/health.ts",
     "job:daily": "tsx src/jobs/daily.ts",
     "proxy": "tsx src/proxy/server.ts",
-    "icons": "tsx scripts/generate-icons.ts"
+    "icons": "tsx scripts/generate-icons.ts",
+    "ratings:forget": "tsx src/jobs/forget-email.ts"
   },
   "dependencies": {
     "@next/third-parties": "16.4.5",

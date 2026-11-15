@@ -1,5 +1,7 @@
 import type { Metadata } from 'next'
+import Link from 'next/link'
 import { t } from '@/i18n'
+import { OWNER } from '@/legal/owner'
 
 export const metadata: Metadata = {
   title: t('cookiePolicy.metaTitle'),
@@ -44,6 +46,16 @@ export default function CookiePolicyPage() {
             </td>
             <td className={CELL}>Recuerda si has aceptado o rechazado la analítica, y cuándo.</td>
             <td className={CELL}>12 meses. Después te lo volvemos a preguntar.</td>
+          </tr>
+          <tr>
+            <td className={CELL}>
+              <code>dr_voter</code> (cookie)
+            </td>
+            <td className={CELL}>
+              Recuerda en este navegador el email con el que ya verificaste una valoración, para que las siguientes
+              cuenten sin volver a confirmar.
+            </td>
+            <td className={CELL}>12 meses.</td>
           </tr>
         </tbody>
       </table>
@@ -92,7 +104,13 @@ export default function CookiePolicyPage() {
       </p>
 
       <h2 className={H2}>Responsable</h2>
-      <p>Los datos del responsable de la web y la forma de contacto figurarán en el aviso legal.</p>
+      <p>
+        {OWNER.name} (NIF {OWNER.nif}). Contacto:{' '}
+        <a href={`mailto:${OWNER.email}`} className="underline">
+          {OWNER.email}
+        </a>
+        . Más información en el <Link href="/aviso-legal" className="underline">aviso legal</Link>.
+      </p>
     </article>
   )
 }

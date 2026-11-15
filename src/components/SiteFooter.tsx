@@ -7,6 +7,12 @@ export function SiteFooter({ showCookieSettings }: { showCookieSettings: boolean
     // pb-20: deja hueco al mini-reproductor fijo para que no tape el pie.
     <footer className="border-t border-neutral-200 pb-20 dark:border-neutral-800">
       <div className="mx-auto flex w-full max-w-7xl flex-wrap gap-x-6 gap-y-2 px-4 py-4 text-sm text-neutral-500">
+        <Link href="/aviso-legal" className="hover:underline">
+          {t('footer.legalNotice')}
+        </Link>
+        <Link href="/privacidad" className="hover:underline">
+          {t('footer.privacy')}
+        </Link>
         <Link href="/politica-de-cookies" className="hover:underline">
           {t('footer.cookiePolicy')}
         </Link>
