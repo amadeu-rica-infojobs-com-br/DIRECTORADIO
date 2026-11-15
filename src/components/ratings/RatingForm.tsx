@@ -18,7 +18,10 @@ export function RatingForm({ stationId, stationName }: { stationId: string; stat
   const [sending, setSending] = useState(false)
   const [message, setMessage] = useState<Message>(null)
   const [invalid, setInvalid] = useState<{ email?: boolean; privacy?: boolean }>({})
+  const [resetKey, setResetKey] = useState(0)
   const radios = useRef<(HTMLButtonElement | null)[]>([])
+  const emailRef = useRef<HTMLInputElement>(null)
+  const privacyRef = useRef<HTMLInputElement>(null)
   const asked = useRef(false)
 
   // Al desplegar el formulario, rellena el email si este navegador ya verificó uno.
@@ -50,7 +53,10 @@ export function RatingForm({ stationId, stationName }: { stationId: string; stat
     e.preventDefault()
     const errors = { email: !EMAIL_RE.test(email.trim()), privacy: !accepted }
     setInvalid(errors)
-    if (errors.email || errors.privacy) return
+    if (errors.email || errors.privacy) {
+      ;(errors.email ? emailRef : privacyRef).current?.focus()
+      return
+    }
 
     const turnstileToken = new FormData(e.currentTarget).get('cf-turnstile-response')
     setSending(true)
@@ -72,6 +78,8 @@ export function RatingForm({ stationId, stationName }: { stationId: string; stat
       setMessage({ kind: 'alert', text: t('ratings.error') })
     } finally {
       setSending(false)
+      // El token de Turnstile es de un solo uso: se pide uno nuevo para el siguiente envío.
+      setResetKey((k) => k + 1)
     }
   }
 
@@ -110,18 +118,27 @@ export function RatingForm({ stationId, stationName }: { stationId: string; stat
           <label className="flex flex-col gap-1 text-sm">
             {t('ratings.email')}
             <input
+              ref={emailRef}
               type="email"
               autoComplete="email"
+              aria-describedby={invalid.email ? 'rating-email-error' : undefined}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               aria-invalid={invalid.email || undefined}
               className="rounded-lg border border-neutral-300 bg-white px-3 py-2 aria-[invalid=true]:border-red-600 dark:border-neutral-700 dark:bg-neutral-900"
             />
           </label>
+          {invalid.email && (
+            <p id="rating-email-error" role="alert" className="text-sm text-red-700 dark:text-red-400">
+              {t('ratings.emailInvalid')}
+            </p>
+          )}
           <div className="flex flex-col gap-1 text-sm">
             <label className="flex items-start gap-2">
               <input
+                ref={privacyRef}
                 type="checkbox"
+                aria-describedby={invalid.privacy ? 'rating-privacy-error' : undefined}
                 checked={accepted}
                 onChange={(e) => setAccepted(e.target.checked)}
                 aria-invalid={invalid.privacy || undefined}
@@ -135,8 +152,13 @@ export function RatingForm({ stationId, stationName }: { stationId: string; stat
               </span>
             </label>
             <p className="pl-6 text-xs text-neutral-500">{t('ratings.privacyNote')}</p>
+            {invalid.privacy && (
+              <p id="rating-privacy-error" role="alert" className="pl-6 text-sm text-red-700 dark:text-red-400">
+                {t('ratings.privacyRequired')}
+              </p>
+            )}
           </div>
-          <Turnstile />
+          <Turnstile resetKey={resetKey} />
           <button
             type="submit"
             disabled={sending}

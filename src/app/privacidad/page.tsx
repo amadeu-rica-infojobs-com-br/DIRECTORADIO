@@ -34,8 +34,13 @@ export default function PrivacidadPage() {
             <td className={CELL}>Tu consentimiento, al marcar la casilla y confirmar el email</td>
           </tr>
           <tr>
-            <td className={CELL}>Dirección IP cifrada (un resumen irreversible, no la IP)</td>
+            <td className={CELL}>Dirección IP seudonimizada (un resumen con clave secreta; no guardamos la IP)</td>
             <td className={CELL}>Limitar abusos: votos y reproducciones repetidos en poco tiempo</td>
+            <td className={CELL}>Interés legítimo en proteger el servicio</td>
+          </tr>
+          <tr>
+            <td className={CELL}>Dirección IP y datos técnicos del navegador, enviados a Cloudflare</td>
+            <td className={CELL}>Comprobar con Cloudflare Turnstile que quien valora no es un robot. No los guardamos nosotros</td>
             <td className={CELL}>Interés legítimo en proteger el servicio</td>
           </tr>
           <tr>
@@ -53,22 +58,30 @@ export default function PrivacidadPage() {
       <p>No publicamos tu email, no lo usamos para enviarte publicidad ni lo cedemos a terceros.</p>
 
       <h2 className={H2}>Cuánto tiempo los conservamos</h2>
+      <p>Los plazos se aplican en la limpieza diaria automática, así que un dato puede durar hasta un día más.</p>
       <ul className="list-disc pl-6">
         <li>Valoraciones sin confirmar: 7 días.</li>
-        <li>Registro de intentos de valoración (email e IP cifrada): 48 horas.</li>
-        <li>IP cifrada de las valoraciones: 35 días.</li>
-        <li>IP cifrada de las reproducciones: 35 días.</li>
-        <li>Valoraciones confirmadas y tu email: mientras la web exista o hasta que pidas su borrado.</li>
-        <li>Analítica: según la configuración de Google Analytics, como máximo 14 meses.</li>
+        <li>Registro de intentos de valoración (email e IP seudonimizada): 48 horas.</li>
+        <li>IP seudonimizada de las valoraciones: 35 días.</li>
+        <li>IP seudonimizada de las reproducciones: 35 días.</li>
+        <li>
+          Valoraciones confirmadas y tu email verificado: mientras la web exista o hasta que pidas su borrado. Tu email
+          verificado se conserva aunque la emisora que valoraste desaparezca del catálogo.
+        </li>
+        <li>Analítica: el plazo de conservación configurado en Google Analytics.</li>
       </ul>
 
       <h2 className={H2}>Quién nos ayuda a tratarlos (encargados del tratamiento)</h2>
       <ul className="list-disc pl-6">
-        <li>Brevo (Sendinblue SAS, Francia): envío del email de confirmación. Datos alojados en la UE.</li>
+        <li>
+          Brevo (Sendinblue SAS, Francia): envío del email de confirmación. Datos alojados en la UE. Brevo conserva sus
+          propios registros de envío (destinatario y fecha) según su política; si pides el borrado, también los
+          eliminamos de Brevo.
+        </li>
         <li>Neon (base de datos, alojada en Fráncfort, Alemania).</li>
         <li>Vercel Inc. (alojamiento de la web, región de Fráncfort).</li>
         <li>Fly.io (proxy de audio y tareas programadas, región de Fráncfort).</li>
-        <li>Cloudflare Inc. (DNS y comprobación anti-robots Turnstile).</li>
+        <li>Cloudflare Inc. (DNS y comprobación anti-robots Turnstile, que recibe tu dirección IP y datos técnicos del navegador).</li>
         <li>Google Ireland Ltd. (analítica, solo si la aceptas).</li>
       </ul>
       <p>

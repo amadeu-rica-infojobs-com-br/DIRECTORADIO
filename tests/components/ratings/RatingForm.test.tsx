@@ -93,4 +93,31 @@ describe('RatingForm', () => {
     })
     expect(fetchMock.mock.calls.filter((c) => c[0] === '/api/valoraciones')).toHaveLength(0)
   })
+
+  it('explains what is missing and focuses the first invalid field', async () => {
+    render(<RatingForm stationId={STATION} stationName="Radio A" />)
+    fireEvent.click(screen.getByRole('radio', { name: '4 estrellas' }))
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Enviar valoración' }))
+    })
+    expect(screen.getByText('Escribe un email válido.')).toBeInTheDocument()
+    expect(screen.getByText('Tienes que aceptar la política de privacidad para enviar tu valoración.')).toBeInTheDocument()
+    expect(screen.getByLabelText('Tu email')).toHaveFocus()
+  })
+
+  it('renders Turnstile explicitly, resets it after each submit and removes it on unmount', async () => {
+    vi.stubEnv('NEXT_PUBLIC_TURNSTILE_SITE_KEY', 'site-key')
+    const api = { render: vi.fn(() => 'w1'), reset: vi.fn(), remove: vi.fn() }
+    ;(window as unknown as { turnstile: typeof api }).turnstile = api
+    const { container, unmount } = render(<RatingForm stationId={STATION} stationName="Radio A" />)
+    fireEvent.click(screen.getByRole('radio', { name: '4 estrellas' }))
+    await waitFor(() => expect(api.render).toHaveBeenCalledWith(expect.any(HTMLElement), expect.objectContaining({ sitekey: 'site-key' })))
+    await fillAndSend(container)
+    await screen.findByRole('status')
+    expect(api.reset).toHaveBeenCalledWith('w1')
+    unmount()
+    expect(api.remove).toHaveBeenCalledWith('w1')
+    delete (window as unknown as { turnstile?: unknown }).turnstile
+    vi.unstubAllEnvs()
+  })
 })

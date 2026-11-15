@@ -7,7 +7,9 @@ import { verifyTurnstile } from './turnstile'
 /** Configuración real de las rutas de valoraciones, desde las variables de entorno. */
 export function ratingHttpConfig(): RatingHttpConfig {
   return {
-    enabled: ratingsEnabled() && Boolean(process.env.RATINGS_SECRET),
+    // Sin secreto no hay cookie de votante segura, y sin sal de IP no hay límites por IP: las valoraciones
+    // quedan apagadas antes que funcionar a medias (spec plan 4 §5.4).
+    enabled: ratingsEnabled() && Boolean(process.env.RATINGS_SECRET) && Boolean(process.env.PLAYS_IP_SALT),
     secret: process.env.RATINGS_SECRET ?? '',
     salt: process.env.PLAYS_IP_SALT || undefined,
     siteUrl: siteUrl(),

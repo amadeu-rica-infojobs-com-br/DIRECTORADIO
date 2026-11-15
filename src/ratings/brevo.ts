@@ -34,6 +34,11 @@ function content({ stationName, stars, url }: VerificationMessage) {
 export function brevoSender(apiKey: string | undefined, fetchImpl: typeof fetch = fetch): SendVerification {
   return async (msg) => {
     if (!apiKey) {
+      // En producción no se finge el envío ni se dejan enlaces válidos en los logs: sin clave es un error
+      // de configuración (502). Solo los e2e, que compilan en modo producción, definen RATINGS_DEV_LINK_FILE.
+      if (process.env.NODE_ENV === 'production' && !process.env.RATINGS_DEV_LINK_FILE) {
+        throw new Error('Falta BREVO_API_KEY: no se puede enviar el email de verificación')
+      }
       console.info('[valoraciones] enlace de verificación:', msg.url)
       // Solo en los e2e: Playwright no ve el log del servidor, así que el enlace se deja en un archivo.
       if (process.env.RATINGS_DEV_LINK_FILE) writeFileSync(process.env.RATINGS_DEV_LINK_FILE, msg.url)

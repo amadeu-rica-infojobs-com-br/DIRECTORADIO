@@ -8,7 +8,9 @@ async function vote(page: Page, stars: number, email: string) {
   const box = page.getByRole('checkbox', { name: /He leído y acepto la/ })
   if (!(await box.isChecked())) await box.check()
   // Turnstile (clave de prueba) rellena su token al cargar el widget.
-  await expect(page.locator('input[name="cf-turnstile-response"]')).not.toHaveValue('', { timeout: 15_000 })
+  const token = page.locator('input[name="cf-turnstile-response"]')
+  await expect(token).toHaveCount(1, { timeout: 15_000 })
+  await expect(token).not.toHaveValue('', { timeout: 15_000 })
   await page.getByRole('button', { name: 'Enviar valoración' }).click()
 }
 
@@ -28,6 +30,16 @@ test('rate a station: verify by email, then vote directly with the remembered em
 
   await vote(page, 2, 'e2e@example.com')
   await expect(page.getByText('¡Gracias! Tu valoración ya cuenta.')).toBeVisible()
+  // Segundo envío sin recargar: el token de Turnstile se ha renovado.
+  await vote(page, 5, 'e2e@example.com')
+  await expect(page.getByText('¡Gracias! Tu valoración ya cuenta.')).toBeVisible()
   await page.reload()
-  await expect(page.getByText('2,0 (1 valoración)')).toBeVisible()
+  await expect(page.getByText('5,0 (1 valoración)')).toBeVisible()
+
+  // Otra ficha a la que se llega navegando en el cliente (emisoras similares): el widget se pinta de nuevo.
+  await page.getByRole('heading', { name: 'Emisoras similares' }).scrollIntoViewIfNeeded()
+  await page.getByTestId('station-card-name').filter({ hasText: 'Radio HTTP' }).click()
+  await expect(page).toHaveURL(/\/emisora\/radio-http$/)
+  await vote(page, 3, 'e2e@example.com')
+  await expect(page.getByText('¡Gracias! Tu valoración ya cuenta.')).toBeVisible()
 })

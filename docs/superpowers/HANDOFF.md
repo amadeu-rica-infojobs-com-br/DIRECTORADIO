@@ -60,7 +60,9 @@ Cuando alguien pida borrar sus datos (escribe a `amadeurm@gmail.com`):
    fly machine run <imagen> node dist/forget-email.mjs persona@example.com --rm --restart no --region fra -a directoradio-audio
    ```
    En local con la base de datos de producción: `DATABASE_URL_DIRECT=… npm run ratings:forget -- persona@example.com`.
-3. El script borra sus votos (y recalcula la media de esas emisoras), sus intentos y su email verificado, con lo que sus cookies de votante dejan de valer. Imprime cuántas filas ha borrado: guardar esa salida y contestar a la persona en un mes como máximo.
+3. El script borra sus votos (y recalcula la media de esas emisoras), sus intentos y su email verificado, con lo que sus cookies de votante dejan de valer. Imprime cuántas filas ha borrado: guardar esa salida.
+4. En Brevo: borrar el contacto y los registros de envío de ese email (*Contacts* y *Transactional → Logs*), como dice la política de privacidad.
+5. Contestar a la persona en un mes como máximo.
 
 ## Activar las valoraciones (plan 4)
 
@@ -81,6 +83,7 @@ Las valoraciones van apagadas (`RATINGS_ENABLED` sin definir) hasta completar es
    - `RATINGS_SECRET`: 32 bytes aleatorios en hexadecimal; se generan con `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`. Si se cambia, se invalidan las cookies de votante;
    - `BREVO_API_KEY`, `NEXT_PUBLIC_TURNSTILE_SITE_KEY` y `TURNSTILE_SECRET_KEY`;
    - `SITE_URL=https://directoradio.com`;
+   - `PLAYS_IP_SALT` ya existe en Production; sin ella, las valoraciones se quedan apagadas aunque `RATINGS_ENABLED=true`, porque no habría límites por IP. Lo mismo sin `RATINGS_SECRET`. Sin `BREVO_API_KEY`, cada envío responde 502;
    - por último, `RATINGS_ENABLED=true`.
 
    Las `NEXT_PUBLIC_*` se fijan al compilar: volver a desplegar después de añadirlas.

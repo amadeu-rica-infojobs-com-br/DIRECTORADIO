@@ -50,6 +50,15 @@ describe('dev link file', () => {
   })
 })
 
+describe('brevoSender misconfiguration', () => {
+  it('refuses to fake a send in production without an API key (unless the e2e link file is set)', async () => {
+    vi.spyOn(console, 'info').mockImplementation(() => {})
+    vi.stubEnv('NODE_ENV', 'production')
+    vi.stubEnv('RATINGS_DEV_LINK_FILE', '')
+    await expect(brevoSender(undefined)(MSG)).rejects.toThrow(/BREVO_API_KEY/)
+  })
+})
+
 describe('verifyTurnstile', () => {
   it('posts secret, response and remote ip and returns success', async () => {
     const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => Response.json({ success: true }))

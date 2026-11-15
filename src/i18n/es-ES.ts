@@ -69,6 +69,8 @@ export const messages = {
   'ratings.acceptPrefix': 'He leído y acepto la',
   'ratings.privacyPolicy': 'política de privacidad',
   'ratings.privacyNote': 'Usaremos tu email solo para verificar tu valoración y evitar votos duplicados. No lo publicaremos ni lo usaremos para otra cosa.',
+  'ratings.emailInvalid': 'Escribe un email válido.',
+  'ratings.privacyRequired': 'Tienes que aceptar la política de privacidad para enviar tu valoración.',
   'ratings.send': 'Enviar valoración',
   'ratings.pending': 'Te hemos enviado un email a {email}. Pulsa el enlace para que tu valoración cuente (caduca en 24 horas).',
   'ratings.counted': '¡Gracias! Tu valoración ya cuenta.',

@@ -22,6 +22,22 @@ describe('legal pages', () => {
     }
   })
 
+  it('privacy policy matches what the code actually does', () => {
+    const { container } = render(<Privacidad />)
+    const text = container.textContent ?? ''
+    // Cloudflare recibe la IP real y señales del navegador para Turnstile.
+    expect(text).toMatch(/Turnstile[^.]*dirección IP/)
+    // Hash con sal de la IP: seudonimizada, no «irreversible».
+    expect(text).toContain('seudonimizada')
+    expect(text).not.toContain('irreversible')
+    // Los plazos se aplican en la limpieza diaria.
+    expect(text).toContain('limpieza diaria')
+    // Brevo guarda sus propios registros de envío.
+    expect(text).toMatch(/Brevo conserva/)
+    // No se afirma un plazo de Google Analytics que el código no controla.
+    expect(text).not.toContain('14 meses')
+  })
+
   it('cookie policy lists the voter cookie and the owner', () => {
     const { container } = render(<CookiePolicyPage />)
     expect(container.textContent).toContain('dr_voter')
