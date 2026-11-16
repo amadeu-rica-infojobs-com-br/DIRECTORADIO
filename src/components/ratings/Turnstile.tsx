@@ -4,7 +4,16 @@ import Script from 'next/script'
 import { useCallback, useEffect, useRef } from 'react'
 
 type TurnstileApi = {
-  render: (el: HTMLElement, opts: { sitekey: string; language?: string }) => string | undefined
+  render: (
+    el: HTMLElement,
+    opts: {
+      sitekey: string
+      language?: string
+      callback?: (token: string) => void
+      'expired-callback'?: () => void
+      'error-callback'?: () => void
+    },
+  ) => string | undefined
   reset: (id: string) => void
   remove: (id: string) => void
 }
@@ -23,14 +32,25 @@ const SCRIPT = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=exp
  * y se quita al desmontar. Deja su token en un campo oculto «cf-turnstile-response» dentro del
  * formulario. Sin clave de sitio (desarrollo), no pinta nada.
  */
-export function Turnstile({ resetKey }: { resetKey: number }) {
+export function Turnstile({ resetKey, onToken }: { resetKey: number; onToken?: (token: string | null) => void }) {
   const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY
   const box = useRef<HTMLDivElement>(null)
   const widget = useRef<string | undefined>(undefined)
+  // Ref para no volver a pintar el widget si cambia la función del padre.
+  const tokenListener = useRef(onToken)
+  useEffect(() => {
+    tokenListener.current = onToken
+  }, [onToken])
 
   const renderWidget = useCallback(() => {
     if (!siteKey || !box.current || widget.current || !window.turnstile) return
-    widget.current = window.turnstile.render(box.current, { sitekey: siteKey, language: 'es' })
+    widget.current = window.turnstile.render(box.current, {
+      sitekey: siteKey,
+      language: 'es',
+      callback: (token) => tokenListener.current?.(token),
+      'expired-callback': () => tokenListener.current?.(null),
+      'error-callback': () => tokenListener.current?.(null),
+    })
   }, [siteKey])
 
   // Si el script ya estaba cargado (otra ficha), se pinta al montar.
@@ -43,7 +63,10 @@ export function Turnstile({ resetKey }: { resetKey: number }) {
   }, [renderWidget])
 
   useEffect(() => {
-    if (resetKey > 0 && widget.current) window.turnstile?.reset(widget.current)
+    if (resetKey > 0 && widget.current) {
+      tokenListener.current?.(null)
+      window.turnstile?.reset(widget.current)
+    }
   }, [resetKey])
 
   if (!siteKey) return null

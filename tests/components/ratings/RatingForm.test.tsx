@@ -107,16 +107,48 @@ describe('RatingForm', () => {
 
   it('renders Turnstile explicitly, resets it after each submit and removes it on unmount', async () => {
     vi.stubEnv('NEXT_PUBLIC_TURNSTILE_SITE_KEY', 'site-key')
-    const api = { render: vi.fn(() => 'w1'), reset: vi.fn(), remove: vi.fn() }
+    // Como Cloudflare, el widget entrega su token por callback al pintarse.
+    const api = {
+      render: vi.fn((_el: HTMLElement, opts: { callback?: (t: string) => void }) => {
+        setTimeout(() => opts.callback?.('tok'), 0)
+        return 'w1'
+      }),
+      reset: vi.fn(),
+      remove: vi.fn(),
+    }
     ;(window as unknown as { turnstile: typeof api }).turnstile = api
     const { container, unmount } = render(<RatingForm stationId={STATION} stationName="Radio A" />)
     fireEvent.click(screen.getByRole('radio', { name: '4 estrellas' }))
     await waitFor(() => expect(api.render).toHaveBeenCalledWith(expect.any(HTMLElement), expect.objectContaining({ sitekey: 'site-key' })))
+    await screen.findByRole('button', { name: 'Enviar valoración' })
     await fillAndSend(container)
     await screen.findByRole('status')
     expect(api.reset).toHaveBeenCalledWith('w1')
     unmount()
     expect(api.remove).toHaveBeenCalledWith('w1')
+    delete (window as unknown as { turnstile?: unknown }).turnstile
+    vi.unstubAllEnvs()
+  })
+
+  it('keeps the send button disabled until Turnstile hands over a token', async () => {
+    vi.stubEnv('NEXT_PUBLIC_TURNSTILE_SITE_KEY', 'site-key')
+    let callback: ((token: string) => void) | undefined
+    const api = {
+      render: vi.fn((_el: HTMLElement, opts: { callback?: (t: string) => void }) => {
+        callback = opts.callback
+        return 'w1'
+      }),
+      reset: vi.fn(),
+      remove: vi.fn(),
+    }
+    ;(window as unknown as { turnstile: typeof api }).turnstile = api
+    render(<RatingForm stationId={STATION} stationName="Radio A" />)
+    fireEvent.click(screen.getByRole('radio', { name: '4 estrellas' }))
+    const button = await screen.findByRole('button', { name: 'Comprobando…' })
+    expect(button).toBeDisabled()
+    await waitFor(() => expect(callback).toBeDefined())
+    act(() => callback!('tok'))
+    expect(screen.getByRole('button', { name: 'Enviar valoración' })).toBeEnabled()
     delete (window as unknown as { turnstile?: unknown }).turnstile
     vi.unstubAllEnvs()
   })
