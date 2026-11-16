@@ -19,6 +19,10 @@ export function RatingForm({ stationId, stationName }: { stationId: string; stat
   const [message, setMessage] = useState<Message>(null)
   const [invalid, setInvalid] = useState<{ email?: boolean; privacy?: boolean }>({})
   const [resetKey, setResetKey] = useState(0)
+  // Con Turnstile activo, no se puede enviar hasta que entregue su token (tarda uno o dos segundos).
+  const needsCaptcha = Boolean(process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY)
+  const [captchaReady, setCaptchaReady] = useState(false)
+  const waitingCaptcha = needsCaptcha && !captchaReady
   const radios = useRef<(HTMLButtonElement | null)[]>([])
   const emailRef = useRef<HTMLInputElement>(null)
   const privacyRef = useRef<HTMLInputElement>(null)
@@ -158,13 +162,13 @@ export function RatingForm({ stationId, stationName }: { stationId: string; stat
               </p>
             )}
           </div>
-          <Turnstile resetKey={resetKey} />
+          <Turnstile resetKey={resetKey} onToken={(token) => setCaptchaReady(Boolean(token))} />
           <button
             type="submit"
-            disabled={sending}
+            disabled={sending || waitingCaptcha}
             className="self-start rounded-lg bg-neutral-900 px-5 py-2.5 text-sm font-semibold text-white hover:bg-neutral-700 disabled:opacity-60 dark:bg-white dark:text-neutral-900 dark:hover:bg-neutral-200"
           >
-            {t('ratings.send')}
+            {waitingCaptcha ? t('ratings.checking') : t('ratings.send')}
           </button>
         </form>
       )}

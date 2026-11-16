@@ -71,6 +71,26 @@ describe('verifyTurnstile', () => {
     expect(form.get('remoteip')).toBe('1.2.3.4')
   })
 
+  it('logs why Cloudflare rejected a token, without secrets', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const fetchMock = vi.fn(async () => Response.json({ success: false, 'error-codes': ['invalid-input-secret'] }))
+    expect(await verifyTurnstile('tok', null, 'S3CR3T-xyz', fetchMock as unknown as typeof fetch)).toBe(false)
+    expect(warn).toHaveBeenCalledWith('[valoraciones] Turnstile rechazado:', 'invalid-input-secret')
+    expect(JSON.stringify(warn.mock.calls)).not.toContain('S3CR3T-xyz')
+  })
+
+  it('logs a missing token', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    expect(await verifyTurnstile('', null, 'sec')).toBe(false)
+    expect(warn).toHaveBeenCalledWith('[valoraciones] Turnstile rechazado:', 'missing-input-response')
+  })
+
+  it('trims the secret (a stray newline from the env would make Cloudflare reject it)', async () => {
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => Response.json({ success: true }))
+    await verifyTurnstile('tok', null, 'sec\n', fetchMock as unknown as typeof fetch)
+    expect((fetchMock.mock.calls[0][1]?.body as URLSearchParams).get('secret')).toBe('sec')
+  })
+
   it('returns false for a non-string token without calling fetch', async () => {
     const fetchMock = vi.fn()
     expect(await verifyTurnstile(undefined, null, 'sec', fetchMock as unknown as typeof fetch)).toBe(false)
