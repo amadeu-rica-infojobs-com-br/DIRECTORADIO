@@ -38,7 +38,9 @@ export function Turnstile({ resetKey, onToken }: { resetKey: number; onToken?: (
   const widget = useRef<string | undefined>(undefined)
   // Ref para no volver a pintar el widget si cambia la función del padre.
   const tokenListener = useRef(onToken)
-  tokenListener.current = onToken
+  useEffect(() => {
+    tokenListener.current = onToken
+  }, [onToken])
 
   const renderWidget = useCallback(() => {
     if (!siteKey || !box.current || widget.current || !window.turnstile) return
