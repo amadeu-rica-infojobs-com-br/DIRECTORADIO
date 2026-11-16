@@ -142,6 +142,15 @@ describe('submitRating', () => {
     expect(results.filter((r) => r.status === 'rate-limited')).toHaveLength(1)
   })
 
+  it('logs why the email could not be sent', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const s = await station()
+    const failing = deps({ send: vi.fn<SendVerification>(async () => Promise.reject(new Error('Brevo respondió 401 unauthorized'))) })
+    await submitRating(ctx.db, input(s.id), failing)
+    expect(warn).toHaveBeenCalledWith('[valoraciones] no se pudo enviar el email:', 'Brevo respondió 401 unauthorized')
+    warn.mockRestore()
+  })
+
   it('cleans up when the email cannot be sent', async () => {
     const s = await station()
     const failing = deps({ send: vi.fn<SendVerification>(async () => Promise.reject(new Error('down'))) })
