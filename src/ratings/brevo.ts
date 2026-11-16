@@ -57,6 +57,14 @@ export function brevoSender(apiKey: string | undefined, fetchImpl: typeof fetch 
       }),
       signal: AbortSignal.timeout(10_000),
     })
-    if (!res.ok) throw new Error(`Brevo respondió ${res.status}`)
+    if (!res.ok) {
+      // Brevo devuelve { code, message } (p. ej. IP no autorizada o cuenta sin activar): va al log para
+      // poder diagnosticar. La clave de API nunca aparece en la respuesta.
+      const detail = await res
+        .json()
+        .then((b: { code?: unknown; message?: unknown }) => [b.code, b.message].filter(Boolean).map(String).join(': '))
+        .catch(() => '')
+      throw new Error(`Brevo respondió ${res.status}${detail ? ` ${detail.slice(0, 300)}` : ''}`)
+    }
   }
 }

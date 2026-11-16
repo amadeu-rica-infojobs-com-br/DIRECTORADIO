@@ -154,7 +154,8 @@ export async function submitRating(db: Db, input: SubmitInput, deps: SubmitDeps)
   try {
     await deps.send({ to: outcome.email, stationName: outcome.stationName, stars: outcome.stars, url })
     return { status: 'pending', email: outcome.email }
-  } catch {
+  } catch (err) {
+    console.warn('[valoraciones] no se pudo enviar el email:', (err as Error).message)
     // Sin email no hay forma de verificar: se borra el pendiente (si nadie lo ha sustituido) y el intento
     // deja de contar como email enviado, aunque sigue contando para el límite por IP.
     await db

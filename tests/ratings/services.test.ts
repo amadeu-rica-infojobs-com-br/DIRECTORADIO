@@ -28,6 +28,17 @@ describe('brevoSender', () => {
     expect(body.textContent).toContain(MSG.url)
   })
 
+  it('includes what Brevo answered in the error, never the API key', async () => {
+    const fetchMock = vi.fn(async () =>
+      Response.json({ code: 'unauthorized', message: 'We have detected you are using an unrecognised IP address 1.2.3.4' }, { status: 401 }),
+    )
+    const err = await brevoSender('K3Y-xyz', fetchMock as unknown as typeof fetch)(MSG).catch((e: Error) => e)
+    expect(String(err)).toContain('401')
+    expect(String(err)).toContain('unauthorized')
+    expect(String(err)).toContain('unrecognised IP address')
+    expect(String(err)).not.toContain('K3Y-xyz')
+  })
+
   it('throws when Brevo answers with an error', async () => {
     const fetchMock = vi.fn(async () => new Response('fail', { status: 500 }))
     await expect(brevoSender('k', fetchMock as unknown as typeof fetch)(MSG)).rejects.toThrow()
