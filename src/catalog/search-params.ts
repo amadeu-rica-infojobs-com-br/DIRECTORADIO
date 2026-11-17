@@ -1,7 +1,7 @@
 import { t } from '@/i18n'
 import { countryName } from '@/lib/country'
 import { genreLabel, GENRES, type Genre } from '@/lib/genres'
-import { languageName } from '@/lib/language'
+import { canonicalLanguageCode, languageName } from '@/lib/language'
 
 export type SearchCriteria = { q?: string; country?: string; language?: string; genre?: Genre }
 
@@ -37,7 +37,8 @@ const normCountry = (s: string) => {
 }
 const normLanguage = (s: string) => {
   const l = s.trim().toLowerCase()
-  return LANGUAGE_RE.test(l) ? l : undefined
+  // Canónico, para que un enlace antiguo con «idioma=spa» siga funcionando.
+  return LANGUAGE_RE.test(l) ? canonicalLanguageCode(l) : undefined
 }
 const normGenre = (s: string) => (GENRES as readonly string[]).includes(s) ? (s as Genre) : undefined
 const normPage = (s: string) => {

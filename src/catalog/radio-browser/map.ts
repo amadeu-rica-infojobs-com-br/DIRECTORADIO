@@ -1,3 +1,4 @@
+import { canonicalLanguageCode } from '@/lib/language'
 import { normalizeTags } from '@/lib/tags'
 import type { RbStation } from './types'
 
@@ -42,8 +43,8 @@ export function mapRbStation(rb: RbStation): MappedStation | null {
 
 const LANGUAGE_CODE_RE = /^[a-z]{2,3}$/
 
-/** `languagecodes` de Radio-Browser ("es,ca") → códigos ISO 639 en minúsculas, sin duplicados. */
+/** `languagecodes` de Radio-Browser ("es,ca,spa") → códigos ISO 639 canónicos en minúsculas, sin duplicados. */
 export function normalizeLanguageCodes(raw: string | undefined): string[] {
   const codes = (raw ?? '').split(',').map((c) => c.trim().toLowerCase())
-  return [...new Set(codes.filter((c) => LANGUAGE_CODE_RE.test(c)))]
+  return [...new Set(codes.filter((c) => LANGUAGE_CODE_RE.test(c)).map(canonicalLanguageCode))]
 }

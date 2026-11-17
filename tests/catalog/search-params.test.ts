@@ -30,6 +30,7 @@ describe('parseSearchParams', () => {
 
   it('normalizes the language and ignores invalid ones', () => {
     expect(parse({ idioma: 'ES' }).criteria).toEqual({ language: 'es' })
+    expect(parse({ idioma: 'spa' }).criteria).toEqual({ language: 'es' })
     expect(parse({ idioma: 'es-ES' }).criteria).toEqual({})
   })
 
