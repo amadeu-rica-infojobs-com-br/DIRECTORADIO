@@ -22,10 +22,12 @@ const ACTIVE =
 // ✕ con área táctil de al menos 32 px.
 const REMOVE = 'flex h-8 min-w-8 items-center justify-center rounded-full hover:bg-black/10 dark:hover:bg-white/10'
 
+// Solo la lista hace scroll: el diálogo no (overflow-hidden) y el contorno de escritorio es un ring,
+// que no ocupa sitio; un borde restaba 2 px y el diálogo sacaba una segunda barra.
 const SHEET =
-  'fixed inset-x-0 bottom-0 top-auto m-0 max-h-[75vh] w-full max-w-none rounded-t-2xl bg-white p-0 text-neutral-900 ' +
+  'fixed inset-x-0 bottom-0 top-auto m-0 max-h-[75vh] w-full max-w-none overflow-hidden rounded-t-2xl bg-white p-0 text-neutral-900 ' +
   'shadow-2xl backdrop:bg-black/40 dark:bg-neutral-900 dark:text-neutral-100 ' +
-  'sm:inset-auto sm:max-h-80 sm:w-72 sm:rounded-xl sm:border sm:border-neutral-200 sm:dark:border-neutral-700 sm:backdrop:bg-transparent'
+  'sm:inset-auto sm:max-h-80 sm:w-72 sm:rounded-xl sm:ring-1 sm:ring-neutral-200 sm:dark:ring-neutral-700 sm:backdrop:bg-transparent'
 
 const DESKTOP = 640
 
