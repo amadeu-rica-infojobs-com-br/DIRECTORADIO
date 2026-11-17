@@ -238,7 +238,11 @@ describe('fetchAllStations', () => {
 
 describe('normalizeLanguageCodes', () => {
   it('lowercases, dedupes and keeps only ISO-looking codes', () => {
-    expect(normalizeLanguageCodes('es, CA,es,,x1,spa')).toEqual(['es', 'ca', 'spa'])
+    expect(normalizeLanguageCodes('es, CA,es,,x1,cat')).toEqual(['es', 'ca'])
+  })
+
+  it('maps 3-letter codes to the 2-letter one so each language appears once', () => {
+    expect(normalizeLanguageCodes('spa,es,ger,deu,eng')).toEqual(['es', 'de', 'en'])
   })
 
   it.each([undefined, ''])('returns [] for %j', (raw) => {

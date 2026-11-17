@@ -2,7 +2,7 @@ import type { FilterOptions } from '@/catalog/search'
 import type { SearchCriteria } from '@/catalog/search-params'
 import { countryName } from '@/lib/country'
 import { genreLabel } from '@/lib/genres'
-import { languageName } from '@/lib/language'
+import { canonicalLanguageCode, languageName } from '@/lib/language'
 
 export type FilterOption = { value: string; label: string }
 export type FilterLists = { country: FilterOption[]; language: FilterOption[]; genre: FilterOption[] }
@@ -20,7 +20,8 @@ export function buildFilterLists(options: FilterOptions, criteria: SearchCriteri
       .map((c) => ({ value: c, label: countryName(c) }))
       .filter((o) => o.label)
       .sort(byLabel),
-    language: withCurrent(options.languages, criteria.language)
+    // Un idioma, una opción, aunque el catálogo aún tenga «spa» y «es» (la sincronización los unifica).
+    language: withCurrent([...new Set(options.languages.map(canonicalLanguageCode))], criteria.language)
       .map((l) => ({ value: l, label: languageName(l) }))
       .filter((o) => o.label)
       .sort(byLabel),

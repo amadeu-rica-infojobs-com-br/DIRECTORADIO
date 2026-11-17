@@ -9,6 +9,15 @@ describe('buildFilterLists', () => {
     expect(lists.language).toEqual([{ value: 'es', label: 'Español' }])
     expect(lists.genre).toEqual([{ value: 'rock', label: 'Rock' }])
   })
+
+  it('shows each language once even if the catalog mixes 2- and 3-letter codes', () => {
+    const lists = buildFilterLists({ countries: [], languages: ['spa', 'es', 'ger', 'deu', 'de', 'ca'], genres: [] }, {})
+    expect(lists.language).toEqual([
+      { value: 'de', label: 'Alemán' },
+      { value: 'ca', label: 'Catalán' },
+      { value: 'es', label: 'Español' },
+    ])
+  })
 })
 
 describe('matchesQuery', () => {
