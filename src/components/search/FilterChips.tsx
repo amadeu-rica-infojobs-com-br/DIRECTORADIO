@@ -24,10 +24,11 @@ const REMOVE = 'flex h-8 min-w-8 items-center justify-center rounded-full hover:
 
 // Solo la lista hace scroll: el diálogo no (overflow-hidden) y el contorno de escritorio es un ring,
 // que no ocupa sitio; un borde restaba 2 px y el diálogo sacaba una segunda barra.
+// En el móvil la hoja tiene altura fija: si encogiera al filtrar, parecería que se cierra.
 const SHEET =
-  'fixed inset-x-0 bottom-0 top-auto m-0 max-h-[75vh] w-full max-w-none overflow-hidden rounded-t-2xl bg-white p-0 text-neutral-900 ' +
+  'fixed inset-x-0 bottom-0 top-auto m-0 h-[75vh] max-h-[75vh] w-full max-w-none overflow-hidden rounded-t-2xl bg-white p-0 text-neutral-900 ' +
   'shadow-2xl backdrop:bg-black/40 dark:bg-neutral-900 dark:text-neutral-100 ' +
-  'sm:inset-auto sm:max-h-80 sm:w-72 sm:rounded-xl sm:ring-1 sm:ring-neutral-200 sm:dark:ring-neutral-700 sm:backdrop:bg-transparent'
+  'sm:inset-auto sm:h-auto sm:max-h-80 sm:w-72 sm:rounded-xl sm:ring-1 sm:ring-neutral-200 sm:dark:ring-neutral-700 sm:backdrop:bg-transparent'
 
 const DESKTOP = 640
 
@@ -131,7 +132,7 @@ export function FilterChips({
         className={SHEET}
       >
         {current && (
-          <div className="flex max-h-[inherit] flex-col">
+          <div className="flex h-full max-h-[inherit] flex-col">
             <div className="flex items-center justify-between gap-2 border-b border-neutral-200 px-4 py-3 dark:border-neutral-700">
               <h2 id={titleId} className="font-semibold">
                 {current.label}
@@ -153,7 +154,7 @@ export function FilterChips({
                 />
               </div>
             )}
-            <ul className="overflow-y-auto px-2 py-2">
+            <ul className="min-h-0 flex-1 overflow-y-auto px-2 py-2">
               <li>
                 <Link
                   href={searchHref({ ...criteria, [current.key]: undefined })}
