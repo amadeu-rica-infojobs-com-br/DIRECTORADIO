@@ -1,11 +1,6 @@
 # DirectoRadio — Diseño de la primera versión (v1)
 
 Fecha: 2026-11-04
-Origen: la descripción inicial del proyecto (ya retirada del repositorio) y sesión de brainstorming.
-
-Las decisiones marcadas con **[propuesta]** las propuso el asistente y el responsable del proyecto no las ha discutido una a una. Se pueden cambiar sin romper el resto del diseño. Los extras propuestos ya están **confirmados para v1**: mini-reproductor fijo, emisoras similares, páginas por género y país, y recordar el email verificado.
-
----
 
 ## 1. Qué es y por qué
 
@@ -56,7 +51,7 @@ La captación de tráfico depende en gran medida de Google ("radio fado online",
 
 ## 4. Restricciones
 
-- Lo desarrolla y mantiene un **equipo web**, no el equipo .NET de la empresa.
+- Lo desarrolla y mantiene un **equipo web**, no el equipo .NET
 - **RGPD:** se guardan emails. Hace falta una política de privacidad, aceptar explícitamente al votar y poder borrar los datos de una persona. Los datos se alojan en la UE **[propuesta]**.
 - Muchas emisoras emiten por `http`. Una web `https` no puede reproducirlas directamente, así que hace falta un proxy.
 - Radio-Browser no tiene descripciones y usa etiquetas libres, no un catálogo cerrado de géneros.
@@ -79,7 +74,7 @@ La captación de tráfico depende en gran medida de Google ("radio fado online",
 
 Se descartó un backend en Python, porque no se entrenan modelos propios, solo se llaman servicios de IA. También se descartaron SvelteKit y Nuxt, que son técnicamente equivalentes pero tienen menos ecosistema.
 
-**Elegida C** porque el proyecto lo desarrolla un equipo web distinto del equipo .NET.
+**Elegida C** porque el proyecto lo desarrolla un equipo web que no programa en .NET.
 
 ### 5.2 Origen del catálogo
 
