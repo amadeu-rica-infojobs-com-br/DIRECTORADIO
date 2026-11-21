@@ -1,7 +1,7 @@
 # DirectoRadio — Diseño de la primera versión (v1)
 
 Fecha: 2026-11-04
-Origen: [descripcionProyecto.md](../../specs/descripcionProyecto.md) y sesión de brainstorming.
+Origen: la descripción inicial del proyecto (ya retirada del repositorio) y sesión de brainstorming.
 
 Las decisiones marcadas con **[propuesta]** las propuso el asistente y el responsable del proyecto no las ha discutido una a una. Se pueden cambiar sin romper el resto del diseño. Los extras propuestos ya están **confirmados para v1**: mini-reproductor fijo, emisoras similares, páginas por género y país, y recordar el email verificado.
 
